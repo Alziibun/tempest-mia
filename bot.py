@@ -33,7 +33,7 @@ async def yo(context):
 	The first argument is context, which is a requirement for every command in this structure.  
 	To read more: https://discordpy.readthedocs.io/en/stable/ext/commands/api.html#discord.ext.commands.Context
 	"""
-	await bot.say('Hello!') # the bot will reply "Hello!"
+	await context.reply('Hello!') # the bot will reply "Hello!"
 
 
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
