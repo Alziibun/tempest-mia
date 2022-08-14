@@ -1,4 +1,4 @@
-
+# I don't want to mess up the code, Alzii
 import sqlite3
 import discord
 import yaml  # external lib: pip install pyyaml
