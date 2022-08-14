@@ -1,24 +1,32 @@
 roles:
   - owner:
       id: 942230609772814448
+      access: 0
 
   - council:
       id: 942230609772814447
+      access: 1
 
   - admin:
       id: 942230609756061783
+      access: 2
 
   - officer:
       id: 942230609756061777
+      access: 3
 
   - veteran:
       id: 942230609739251739
+      access: 4
 
   - origin:
       id: 942230609739251737
+      access: 4
 
   - member:
       id: 942230609718292572
+      access: 4
 
   - guest:
       id: 942230609739251734
+      access: 5
