@@ -83,7 +83,7 @@ async def on_ready():
 	global db
 	db = Database()
 @bot.event
-async def on_member_add(member):
+async def on_member_join(member):
 	# updates #welcomes-and-leaves when a member joins
 	channel = bot.get_channel(942230610246774852)
 	await channel.send(f'✔ <@{member.id}> has joined.')
