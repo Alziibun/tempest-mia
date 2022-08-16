@@ -85,15 +85,27 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
 	# updates #welcomes-and-leaves when a member joins
-	channel = bot.get_channel(942230610246774852)
-	await channel.send(f'✔ <@{member.id}> has joined.')
+	channel = bot.get_channel(942230610246774852) # #welcomes-and-leaves
+	embed = discord.Embed(
+		description = f'<@{member.id}> has **joined**.',
+		color       = discord.Colour.from_rgb(0, 255, 0))
+	embed.set_author(
+		name        = member.id + "#" + member.discriminator,
+		icon_url    = member.avatar_url)
+	await channel.send(embed=embed)
 
 @bot.event
 async def on_member_remove(member):
 	# updates #welcomes-and-leaves when a member leaves
 	channel = bot.get_channel(942230610246774852) # #welcomes-and-leaves
-	await channel.send(f'❌ <@{member.id}> has left.')
-
+	embed = discord.Embed(
+		description = f'<@{member.id}> has **left**.',
+		color       = discord.Colour.from_rgb(255, 0, 0))
+	embed.set_author(
+		name        = member.name + "#" + member.discriminator,
+		icon_url    = member.avatar_url)
+	print(member.avatar_url)
+	await channel.send(embed=embed)
 
 @bot.command()
 async def yo(context):
@@ -110,6 +122,11 @@ async def yo(context):
 	To read more: https://discordpy.readthedocs.io/en/stable/ext/commands/api.html#discord.ext.commands.Context
 	"""
 	await context.reply('Hello!') # the bot will reply "Hello!"
+
+@bot.command()
+async def su(ctx): # sudo command for debugging and library testing
+	if ctx.author.id == 90893355029921792:
+		await ctx.reply("```\n" + str(exec(ctx.message.content.split(' ')[1]) + "\n```"))
 
 
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
