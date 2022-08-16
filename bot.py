@@ -84,6 +84,13 @@ async def on_ready():
 	db = Database()
 
 
+@bot.event
+async def on_member_remove(member):
+	# updates #welcomes-and-leaves when a member leaves
+	channel = bot.get_channel(942230610246774852) # #welcomes-and-leaves
+	channel.send(f'<@{member.id}> has left.')
+
+
 @bot.command()
 async def yo(context):
 
