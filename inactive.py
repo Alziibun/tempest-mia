@@ -1,16 +1,19 @@
 import discord
 import math
 import datetime as time
+from tempest import Tempest, Database
 from datetime import timedelta
 from discord.ext import commands
 
 class Inactivity(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.tempest = Tempest( await bot.fetch_guild(942230609701511228) )
 
 	@commands.command(aliases=['ireg'])
 	@commands.guild_only()
 	async def inactive(self, ctx, name: str, days: int):
+		if not self.tempest.has_access(ctx.author): return print('lol')
 		"""
 		- Register the {name} to the inactivity registry for {time} days.
 		- Temporarily using primitive and usually unreliable discord.py functions for now
