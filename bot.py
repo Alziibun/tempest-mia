@@ -20,7 +20,7 @@ intents.members  = True # this will allow the bot to request member information
 intents.messages = True # This enables the bot to request things like message history and process DMs.
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
-# extensions = ['inactive']
+extensions = ['inactive']
 
 bot = commands.Bot(command_prefix='mi-', intents=intents)
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":  # make sure nothing else runs this part except for t
 			bot.load_extension(ex)
 		except Exception as e:
 			exc = "{}: {}".format(type(e).__name__, e)
-			print('Failed to load extension {}\n{}'.format(extension, exc))
+			print('Failed to load extension {}\n{}'.format(ex, exc))
 	with open('key', 'r') as key:
 		bot.run(key.readline())  # activates the bot using the token (DON'T SHARE THE TOKEN).
 
