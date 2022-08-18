@@ -2,6 +2,7 @@
 import sqlite3
 import discord
 import yaml  # external lib: pip install pyyaml
+import datetime as dt
 from discord.ext import commands
 from sqlite3 import Error
 try:
@@ -19,14 +20,15 @@ intents.members  = True # this will allow the bot to request member information
 intents.messages = True # This enables the bot to request things like message history and process DMs.
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
+# extensions = ['inactive']
+
 bot = commands.Bot(command_prefix='mi-', intents=intents)
-
-
 
 class Tempest:
 	def __init__(self):
 		with open('tempest.yaml', 'r') as file:
 			roles = yaml.load(file)
+			print(roles)
 
 class Database:
 
@@ -82,15 +84,16 @@ async def on_ready():
 	print('Logged on as {0}!'.format(bot.user))
 	global db
 	db = Database()
+
 @bot.event
 async def on_member_join(member):
 	# updates #welcomes-and-leaves when a member joins
 	channel = bot.get_channel(942230610246774852) # #welcomes-and-leaves
 	embed = discord.Embed(
-		description = f'<@{member.id}> has **joined**.',
+		description = f'{member.mention} has **joined**.',
 		color       = discord.Colour.from_rgb(0, 255, 0))
 	embed.set_author(
-		name        = member.id + "#" + member.discriminator,
+		name        = member.name + "#" + member.discriminator,
 		icon_url    = member.avatar_url)
 	await channel.send(embed=embed)
 
@@ -99,7 +102,7 @@ async def on_member_remove(member):
 	# updates #welcomes-and-leaves when a member leaves
 	channel = bot.get_channel(942230610246774852) # #welcomes-and-leaves
 	embed = discord.Embed(
-		description = f'<@{member.id}> has **left**.',
+		description = f'{member.mention} has **left**.',
 		color       = discord.Colour.from_rgb(255, 0, 0))
 	embed.set_author(
 		name        = member.name + "#" + member.discriminator,
@@ -128,8 +131,13 @@ async def su(ctx): # sudo command for debugging and library testing
 	if ctx.author.id == 90893355029921792:
 		await ctx.reply("```\n" + str(exec(ctx.message.content.split(' ')[1]) + "\n```"))
 
-
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
-
+	for ex in extensions:
+		try:
+			bot.load_extension(ex)
+		except Exception as e:
+			exc = "{}: {}".format(type(e).__name__, e)
+			print('Failed to load extension {}\n{}'.format(extension, exc))
 	with open('key', 'r') as key:
 		bot.run(key.readline())  # activates the bot using the token (DON'T SHARE THE TOKEN).
+
