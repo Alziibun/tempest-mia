@@ -15,7 +15,7 @@ intents.members  = True # this will allow the bot to request member information
 intents.messages = True # This enables the bot to request things like message history and process DMs.
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
-extensions = ['inactive']
+extensions = ['inactive', 'profiles']
 
 bot = commands.Bot(command_prefix='mi-', intents=intents)
 
