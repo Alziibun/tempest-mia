@@ -3,10 +3,7 @@ import discord
 import datetime as dt
 from discord.ext import commands
 from sqlite3 import Error
-try:
-	from yaml import CLoader as Loader, CDumper as Dumper
-except ImportError:
-	from yaml import Loader, Dumper
+
 
 intents = discord.Intents.default()
 """
