@@ -70,9 +70,25 @@ async def yo(context):
 	await context.reply('Hello!') # the bot will reply "Hello!"
 
 @bot.command()
-async def su(ctx): # sudo command for debugging and library testing
-	if ctx.author.id == 90893355029921792:
-		await ctx.reply("```\n" + str(exec(ctx.message.content.split(' ')[1]) + "\n```"))
+async def ev(ctx, *, cmd): # eval command for debugging and library testing
+	"""
+	reference: https://gist.github.com/simmsb/2c3c265813121492655bc95aa54da6b9
+	"""
+	try:
+		cmd = cmd.split('`')[1]
+	except IndexError:
+		ctx.reply('Format code `like this`.')
+	print("evaluation", cmd)
+	env = {
+		'bot': ctx.bot,
+		'discord': discord,
+		'commands': commands,
+		'ctx': ctx,
+		'__import__': __import__
+	}
+
+	result = eval(f'{cmd}')
+	await ctx.reply(result)
 
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
 	for ex in extensions:
