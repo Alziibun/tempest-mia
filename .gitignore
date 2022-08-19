@@ -1,2 +1,6 @@
 key
 mia/*
+database.sqlite3
+__pycache__/*
+database.sqlite3
+*.sqlite3
