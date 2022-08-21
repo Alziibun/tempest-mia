@@ -49,23 +49,6 @@ async def on_member_remove(member):
 		icon_url    = member.avatar_url)
 	print(member.avatar_url)
 	await channel.send(embed=embed)
-
-@bot.command()
-async def yo(context):
-
-	"""
-	Here's an example of a bot command with the "cogs" structure.
-	----
-	Using the decorator "@bot.command()" we can make a method into a bot command smoothly.
-
-	The name of the method is the name of the command, so for example typing "mi-yo" will tell the bot to use this command.
-	(Mi-) is our prefix, (yo) is the command name
-
-	The first argument is context, which is a requirement for every command in this structure.  
-	To read more: https://discordpy.readthedocs.io/en/stable/ext/commands/api.html#discord.ext.commands.Context
-	"""
-	await context.reply('Hello!') # the bot will reply "Hello!"
-
 @bot.command()
 async def ev(ctx, *, cmd): # eval command for debugging and library testing
 	"""
