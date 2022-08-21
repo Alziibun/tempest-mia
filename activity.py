@@ -5,7 +5,7 @@ import tempest
 from datetime import timedelta
 from discord.ext import commands
 
-class Inactivity(commands.Cog):
+class Activity(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
@@ -42,4 +42,4 @@ class Inactivity(commands.Cog):
 		await channel.send(embed=embed)
 
 def setup(bot):
-	bot.add_cog(Inactivity(bot))
+	bot.add_cog(Activity(bot))
