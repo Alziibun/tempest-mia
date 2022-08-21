@@ -8,10 +8,22 @@ except ImportError:
 
 server = None
 roles = dict()
+
+# chats
+officer = 942230610246774851
+admin   = 942230610246774849
+council = 942230610246774846
+notes   = 1008223604170825788
+
 def init(guild: discord.Guild):
 	print(f'Initiating {guild.name} as Tempest server.')
-	global server, roles
+	global server, roles, officer, admin, council, notes
 	server = guild
+	officer = server.get_channel(officer)
+	admin = server.get_channel(admin)
+	council = server.get_channel(council)
+	notes = server.get_channel(notes)
+
 	with open('tempest.yaml', 'r') as file:
 		_roles = yaml.load(file, Loader=Loader)
 		for k, v in _roles.items():
@@ -79,12 +91,12 @@ class Database:
 		cls.con.commit()
 
 	@classmethod
-	def add_member(cls, member: discord.Member, ign='NULL', officer='NULL', ismember=False):
+	def add_member(cls, member: discord.Member, ign='NULL', officer=0, ismember: bool=False):
 		query = f"""
 		INSERT INTO
 		   members (id, ign, officer, member)
 		VALUES
-		   ({member.id}, '{ign}', '{officer}', {ismember});
+		   ({member.id}, '{ign}', {officer}, {bool(ismember)});
 		"""
 		
 		cls.commit(query)
@@ -112,7 +124,28 @@ class Database:
 	@classmethod
 	def get_member_by_ign(cls, tof: str):
 		try:
-			return cls.cur.execute(f"SELECT * FROM members WHERE tof='{tof}'")
+			return cls.cur.execute(f"SELECT * FROM members WHERE ign='{tof}'").fetchone()
 		except:
 			return print('Unable to find Tower of Fantasy username:', tof, 'in database.')
+
+	@classmethod
+	def update_officer(cls, member: discord.Member, officer: discord.Member=0):
+		query = f"""
+		UPDATE members
+		SET officer = {officer.id}
+		WHERE id = {member.id}
+		"""
+		cls.commit(query)
+		print('Updated entry for', member.name)
+
+	@classmethod
+	def update_ign(cls, member: discord.Member, ign: str):
+		query = f"""
+		UPDATE members
+		SET ign = {ign}
+		WHERE id = {member.id}
+		"""
+
+		cls.commit(query)
+		print('Updated ign for', member.name)
 
