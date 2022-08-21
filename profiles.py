@@ -1,14 +1,10 @@
+from typing import Any
+
 import discord
 import tempest
 from tempest import Database as db
 from discord.ext import commands
 
-print('from profiles.py', db)
-
-# profile functions
-VIEW = 'view'
-EDIT = 'edit'
-TOF  = 'tof'
 
 class Profile(commands.Cog):
 	def __init__(self, bot):
@@ -17,29 +13,44 @@ class Profile(commands.Cog):
 
 	@commands.command(aliases=['p', 'pro'])
 	@commands.guild_only()
-	async def profile(self, ctx, name: str=None, func: str=None, field: str=None, value=None):		
-		if not name:
-			member = ctx.author
-		elif func == TOF:
-			data = db.get_member_by_ign(name)
-			member = ctx.guild.get_member_named( )
+	async def profile(self, ctx, name: str=None, lookup: str='discord'):
+		# profile functions
+		member = ctx.author # default if no arguments supplied
+		if name:
+			match lookup:
+				case 't' | 'tof':
+					data = db.get_member_by_ign(name)
+					member = ctx.guild.get_member(data[0]) # data[0] is the member's ID
+				case 'd' | 'discord':
+					member = ctx.guild.get_member_named(name)
+					data = db.get_member(member)
 		else:
-			pass
-		data = db.get_member(member)
+			data = db.get_member(member) # default data if no arguments applied
+		""" 
+		retrieve member info from database
+		< Indexes : data >
+		0: member ID
+		1: IGN
+		2: officer
+		3: member BOOL
+		"""
 		ign = data[1]
 		officer = ctx.guild.get_member(data[2])
-
+		role = tempest.get_rank(member)['obj']
+		# create the embed
 		embed = discord.Embed(
-			title       = ign,
-			description = member.mention)
+			   title       = ign,
+			   description = member.mention,
+			   color       = role.color)
 		embed.set_thumbnail(url=member.avatar_url)
 		embed.add_field(
-			name  = 'Rank',
-			value = tempest.get_rank(member)['obj'].name)
+			   name  = 'Rank',
+			   value = role.name)
 		if officer:
+			# if the member has a supervisor create a footer
 			embed.set_footer(
-				text=officer.name,
-				icon_url=officer.avatar_url)
+				   text=officer.name,
+				   icon_url=officer.avatar_url)
 		await ctx.channel.send(embed=embed)
 
 	@commands.command(aliases=['reg'])
