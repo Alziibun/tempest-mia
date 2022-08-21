@@ -104,6 +104,7 @@ class Database:
 
 	@classmethod
 	def add_inactive(cls, member: discord.Member, ti1, ti2):
+		
 		query = f"""
 		INSERT INTO
 			members (id, ti1, ti2)
@@ -116,6 +117,7 @@ class Database:
 
 	@classmethod
 	def get_member(cls, member: discord.Member):
+		# returns a Tuple from the members database relevant to the {member}
 		try:
 			return cls.cur.execute(f'SELECT * FROM members WHERE id={member.id}').fetchone()
 		except:
@@ -123,6 +125,7 @@ class Database:
 
 	@classmethod
 	def get_member_by_ign(cls, tof: str):
+		# returns a Tuple from the members database using a member's TOF IGN
 		try:
 			return cls.cur.execute(f"SELECT * FROM members WHERE ign='{tof}'").fetchone()
 		except:
