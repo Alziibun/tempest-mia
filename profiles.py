@@ -24,6 +24,7 @@ class Profile(commands.Cog):
 			data = db.get_member_by_ign(name)
 			member = ctx.guild.get_member_named( )
 		else:
+			pass
 		data = db.get_member(member)
 		ign = data[1]
 		officer = ctx.guild.get_member(data[2])
@@ -46,7 +47,7 @@ class Profile(commands.Cog):
 	async def register(self, ctx, name: str, *, tof: str=None):
 		member = ctx.guild.get_member_named(name)
 		if tempest.has_access(member, 3):
-		print(db.get_member(member))
+			print(db.get_member(member))
 		if db.get_member(member):
 			return await ctx.reply(f"{member.display_name} is already registered.  Please use mi-??? to edit their information.")
 		if not tof: return await ctx.reply(f"Tower of Fantasy IGN required. `mi-register <name> <ign>") 
@@ -72,15 +73,16 @@ class Profile(commands.Cog):
 		if not db.get_member(member):
 			return await ctx.reply(f"{member.display_name}'s profile has not been created.  Use mi-register <discord name> <tof name> to register them.")
 		db.update_officer(member)
+
 	@commands.command()
 	async def apply(self, ctx, name):
 		member = ctx.author
-		if tempest.get_member_by_ign(name):
+		if db.get_member_by_ign(name):
 			pass
-		if tempest.get_member(member):
-			tempest.update_ign(member, name)
+		if db.get_member(member):
+			db.update_ign(member, name)
 		else:
-			tempest.add_member(member, name, ismember = tempest.has_access(member, 4))
+			db.add_member(member, name, ismember = tempest.has_access(member, 4))
 		await ctx.reply("Your profile has been created!") 
 
 
