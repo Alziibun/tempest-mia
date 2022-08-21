@@ -142,10 +142,10 @@ class Database:
 	def update_ign(cls, member: discord.Member, ign: str):
 		query = f"""
 		UPDATE members
-		SET ign = {ign}
+		SET ign = '{ign}'
 		WHERE id = {member.id}
 		"""
-
+		print(query)
 		cls.commit(query)
 		print('Updated ign for', member.name)
 
