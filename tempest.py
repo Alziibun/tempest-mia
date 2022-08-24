@@ -1,6 +1,7 @@
 import sqlite3
 import discord
 import yaml
+import datetime as dt
 try:
 	from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -15,6 +16,19 @@ admin   = 942230610246774849
 council = 942230610246774846
 notes   = 1008223604170825788
 
+accolades = [
+	"Leveling",
+	"Bygone Phantasm",
+	"Wormhole",
+	"Contribution"
+]
+
+level_caps = [
+
+]
+
+tof_epoch = dt.datetime(2022, 8, 10, hour=20)
+tof_week_epoch = dt.datetime(2022, 8, 15, hour=5)
 def init(guild: discord.Guild):
 	print(f'Initiating {guild.name} as Tempest server.')
 	global server, roles, officer, admin, council, notes
@@ -48,6 +62,35 @@ def has_access(member: discord.Member, req):
 	# check if the member has the required av for the command
 	return True if get_rank(member)['av'] <= req else False
 
+def get_weeks():
+	since_weekly_epoch = dt.datetime.now() - tof_week_epoch
+	return since_weekly_epoch.day // 7
+
+def get_days():
+	# get the amount of days since the game released accounting for reset time
+	now = dt.datetime.now()
+	since_epoch = now - tof_epoch
+	days = since_epoch.days
+	if now.hour >= 5:
+		days += 1
+	return days + 1
+
+def get_daily_reset():
+	today = dt.datetime.now()
+	print(today.hour)
+	reset = dt.datetime(today.year, today.month, today.day)
+	if today.hour >= 5:
+		reset = reset + dt.timedelta(days=1)
+	reset.replace(hour=5, minute=0, second=0, microsecond=0)
+	return reset
+
+def get_weekly_reset():
+	today = dt.datetime.now()
+	diff = today.weekday() - ( today.weekday() - 6) - 1
+	print(today.weekday())
+	reset = today.replace(hour=5, minute=0, second=0, microsecond=0) + dt.timedelta(days = diff)
+	return reset
+
 class Database:
 	con = None
 	cur = None
@@ -59,29 +102,6 @@ class Database:
 			print('Connected to database.')
 		except Error as e:
 			print(f'Unable to connect to database. {e}')
-			return # can't connect to database, skip this method.
-
-		create_members = '''
-		CREATE TABLE IF NOT EXISTS members (
-			id INTEGER PRIMARY KEY,
-			ign TEXT,
-			officer INTEGER, 
-			member BOOL NOT NULL
-			);
-		'''
-
-		create_inactive = '''
-		CREATE TABLE IF NOT EXISTS inactive (
-		id INTEGER PRIMARY KEY,
-		ti1 INTEGER NOT NULL,
-		ti2 INTEGER NOT NULL
-		);
-		'''
-
-		cls.cur.execute(create_members)
-		cls.cur.execute(create_inactive)
-
-		cls.con.commit()
 		# END OF INITIALIZATION
 
 	@classmethod
@@ -116,6 +136,13 @@ class Database:
 		print(f'Inactivity registered to database.')
 
 	@classmethod
+	def add_accolade(cls, member: discord.Member, accolade: int):
+		query = f"""
+		INSERT INTO
+			members (id,
+		"""
+
+	@classmethod
 	def get_member(cls, member: discord.Member):
 		# returns a Tuple from the members database relevant to the {member}
 		try:
@@ -130,6 +157,13 @@ class Database:
 			return cls.cur.execute(f"SELECT * FROM members WHERE ign='{tof}'").fetchone()
 		except:
 			return print('Unable to find Tower of Fantasy username:', tof, 'in database.')
+	@classmethod
+	def fetch_members_by_officer(cls, officer: discord.Member):
+		# returns a list of rows (tuple) related to an officer
+		try:
+			return cls.cur.execute(f"SELECT * FROM members WHERE officer={officer.id}").fetchall()
+		except:
+			return print('Unable to locate officer by ID')
 
 	@classmethod
 	def update_officer(cls, member: discord.Member, officer: discord.Member=0):
@@ -151,4 +185,45 @@ class Database:
 		print(query)
 		cls.commit(query)
 		print('Updated ign for', member.name)
+
+	@classmethod
+	def add_contribution(cls, member: discord.Member, value: int):
+		# check if contribution exists for today
+		today = get_days()
+		result = cls.cur.execute(f"SELECT * FROM contributions WHERE day={today}").fetchall()
+		relative = []
+		if len(result):
+			relative = [row[1] for row in result]
+		if member.id in relative:
+			row = result[relative.index(member.id)]
+			query = f"""
+			UPDATE contributions
+			SET points = {row[2] + value}
+			WHERE day = {today}
+			"""
+			print('Updating contributions')
+		else:
+			query = f"""
+			INSERT INTO
+				contributions (memberid, points, day)
+			VALUES
+				({member.id}, {value}, {today})
+			"""
+			print('Adding contribution')
+		cls.commit(query)
+
+	@classmethod
+	def fetch_contributions(cls, member: discord.Member):
+		result = cls.cur.execute(f"SELECT * FROM contributions WHERE memberid={member.id} ORDER BY day").fetchall()
+		return result
+
+	@classmethod
+	@property
+	def schema(cls):
+		table_names = cls.cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
+		table_names = [row[0] for row in table_names]
+		for table in table_names:
+			pragma = cls.con.execute(f"PRAGMA table_info('{table}')").fetchall()
+			yield table, pragma
+
 

@@ -2,9 +2,8 @@ import tempest
 import discord
 import datetime as dt
 from discord.ext import commands
+from tempest import Database as db
 from sqlite3 import Error
-
-
 intents = discord.Intents.default()
 """
 Intents are a new API structure introduced by Discord.
@@ -13,9 +12,10 @@ It's probably something designed to crack down on scam bots or something but it 
 """
 intents.members  = True # this will allow the bot to request member information
 intents.messages = True # This enables the bot to request things like message history and process DMs.
+intents.message_content = True
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
-extensions = ['inactive', 'profiles']
+extensions = ['activity', 'profiles']
 
 bot = commands.Bot(command_prefix='mi-', intents=intents)
 
@@ -34,7 +34,7 @@ async def on_member_join(member):
 		color       = discord.Colour.from_rgb(0, 255, 0))
 	embed.set_author(
 		name        = member.name + "#" + member.discriminator,
-		icon_url    = member.avatar_url)
+		icon_url    = member.avatar.url)
 	await channel.send(embed=embed)
 
 @bot.event
@@ -46,18 +46,34 @@ async def on_member_remove(member):
 		color       = discord.Colour.from_rgb(255, 0, 0))
 	embed.set_author(
 		name        = member.name + "#" + member.discriminator,
-		icon_url    = member.avatar_url)
-	print(member.avatar_url)
+		icon_url    = member.display_avatar.url)
+	data = db.get_member(member)
+	try:
+		if data[1] != 'NULL':
+			embed.add_field(
+				name  = "Tower of Fantasy",
+				value = f"{data[1]}")
+	except:
+		print('No TOF name.')
 	await channel.send(embed=embed)
+
+@bot.command()
+async def time(ctx):
+	await ctx.send(f"Daily reset: <t:{int(tempest.get_daily_reset().timestamp())}:R>\nWeekly reset: <t:{int(tempest.get_weekly_reset().timestamp())}:R>")
+
+@bot.command()
+async def food(ctx):
+	async with ctx.channel.typing():
+		await ctx.send(file=discord.File("./videos/en_coco.mp4"))
 @bot.command()
 async def ev(ctx, *, cmd): # eval command for debugging and library testing
 	"""
 	reference: https://gist.github.com/simmsb/2c3c265813121492655bc95aa54da6b9
 	"""
 	try:
-		cmd = cmd.split('`')[1]
-	except IndexError:
-		ctx.reply('Format code `like this`.')
+		cmd = cmd.strip('` ')
+	except Exception as lol:
+		await ctx.reply(lol)
 	print("evaluation", cmd)
 	env = {
 		'bot': ctx.bot,
@@ -70,10 +86,45 @@ async def ev(ctx, *, cmd): # eval command for debugging and library testing
 	result = eval(f'{cmd}')
 	await ctx.reply(result)
 
+@bot.command()
+async def commit(ctx, *, query: str):
+	try:
+		query = query.strip('` ')
+		query = query.replace('sql', '')
+		db.commit(query)
+		await ctx.send('Commit successful.')
+	except Exception as e:
+		await ctx.reply(f'Commit failed.\nError: {e}')
+
+@bot.command()
+async def schema(ctx):
+	embeds = []
+	for table_name, pragma in db.schema:
+		_embed = discord.Embed(title=f'{table_name} schema')
+		col_name = ''
+		col_type = ''
+		col_default = ''
+		for col in pragma:
+			# if key is primary, embolden it
+			col_name    += "{1}{0}{1}\n".format(col[1], '**' if bool(col[5]) else '')
+			# write the type as code block
+			col_type    += f"`{'*' if col[3] else ''}{col[2]}`\n"
+			# write the default value of the column
+			col_default += f"{'`' + col[4] + '`' if col[4] is not None else '*None*'}\n"
+		_embed.add_field(name = "Name", value = col_name)
+		_embed.add_field(name = 'Type', value = col_type)
+		_embed.add_field(name = 'Default', value = col_default)
+		embeds.append(_embed)
+		print(table_name)
+	await ctx.send(embeds=embeds)
+
+
+
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
 	for ex in extensions:
 		try:
 			bot.load_extension(ex)
+			print(ex, "loaded.")
 		except Exception as e:
 			exc = "{}: {}".format(type(e).__name__, e)
 			print('Failed to load extension {}\n{}'.format(ex, exc))
