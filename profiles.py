@@ -12,6 +12,9 @@ class Profile(commands.Cog):
 
 	@commands.command(aliases=['p', 'pro'])
 	async def profile(self, ctx, name: str=None, lookup: str='discord'):
+		"""
+		Shows ToF name, discord mention, guild rank and activity monitoring officer.
+		"""
 		# profile functions
 		member = ctx.author # default if no arguments supplied
 		if name:
