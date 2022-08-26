@@ -56,47 +56,53 @@ class Profile(commands.Cog):
 
 	@commands.command(aliases=['c'])
 	@commands.guild_only()
+	@tempest.access(3)
 	async def create(self, ctx, name: str, *, tof: str=None):
-		if tempest.has_access(ctx.author, 3):
-			member = ctx.guild.get_member_named(name)
-			if tempest.has_access(member, 3):
-				print(db.get_member(member))
-			if db.get_member(member):
-				db.update_ign(member, tof)
-				message = await ctx.send(f"{member.name}'s IGN has been changed.")
-				await message.delete(delay=5)
-				await ctx.message.delete()
-				return
-			if not tof: return await ctx.reply(f"Tower of Fantasy IGN required. `mi-register <name> <ign>")
-
-			db.add_member(member, tof, ismember=tempest.has_access(member, 4)) # has_access to check if the member is a guest or not
-			message = await ctx.send(f"{member.display_name}'s profile has been created!")
+		"""
+		Creates a profile for a member associating their ToF username.
+		"""
+		member = ctx.guild.get_member_named(name)
+		if tempest.has_access(member, 3):
+			print(db.get_member(member))
+		if db.get_member(member):
+			db.update_ign(member, tof)
+			message = await ctx.send(f"{member.name}'s IGN has been changed.")
 			await message.delete(delay=5)
 			await ctx.message.delete()
+			return
+		if not tof: return await ctx.reply(f"Tower of Fantasy IGN required. `mi-register <name> <ign>")
+		db.add_member(member, tof, ismember=tempest.has_access(member, 4)) # has_access to check if the member is a guest or not
+		message = await ctx.send(f"{member.display_name}'s profile has been created!")
+		await message.delete(delay=5)
+		await ctx.message.delete()
 	@commands.command()
 	@commands.guild_only()
+	@tempest.access(2)
 	async def assign(self, ctx, officer: str, *, name: str):
-		if tempest.has_access(ctx.author, 2):
-			officer = ctx.guild.get_member_named(officer)
-			member = ctx.guild.get_member(db.get_member_by_ign(name)[0])
+		officer = ctx.guild.get_member_named(officer)
+		member = ctx.guild.get_member(db.get_member_by_ign(name)[0])
 
-			if member and officer:
-				db.update_officer(member, officer)
-				await tempest.officer.send(f"> {member.mention} was assigned to {officer.display_name}.")
+		if member and officer:
+			db.update_officer(member, officer)
+			await tempest.officer.send(f"> {member.mention} was assigned to {officer.display_name}.")
 
 	@commands.command(aliases=['delassign', 'da', 'una'])
 	@commands.guild_only()
+	@tempest.access(2)
 	async def unassign(self, ctx, name: str):
-		if tempest.has_access(ctx.author, 2):
-			member = ctx.guild.get_member_named(name)
-			if not db.get_member(member):
-				return await ctx.reply(f"{member.display_name}'s profile has not been created.  Use mi-register <discord name> <tof name> to register them.")
-			db.update_officer(member)
-			ctx.reply(f"{member.name}'s officer has been removed.")
+		member = ctx.guild.get_member_named(name)
+		if not db.get_member(member):
+			return await ctx.reply(f"{member.display_name}'s profile has not been created.  Use mi-register <discord name> <tof name> to register them.")
+		db.update_officer(member)
+		ctx.reply(f"{member.name}'s officer has been removed.")
 
 	@commands.command(aliases=['reg'])
 	@commands.guild_only()
+	@tempest.access()
 	async def register(self, ctx, *, name):
+		"""
+		Associate your Discord account with your ToF username.
+		"""
 		member = ctx.author
 		if db.get_member_by_ign(name):
 			reply = await ctx.reply("Your profile already exists!\nCheck it out with `mi-profile`")
