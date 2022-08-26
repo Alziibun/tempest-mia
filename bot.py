@@ -84,8 +84,26 @@ async def food(ctx):
 	async with ctx.channel.typing():
 		await ctx.send(file=discord.File("./videos/en_coco.mp4"))
 
+class Help(commands.HelpCommand):
+	async def send_bot_help(self, mapping):
+		embed = discord.Embed(title = 'Commands')
+		for cog, commands in mapping.items():
+			verified_commands = await self.filter_commands(commands, sort=True)
+			command_signatures = [self.get_command_signature(c) for c in verified_commands]
+			if command_signatures:
+				cog_name = getattr(cog, "qualified_name", "Mi-sc.")
+				embed.add_field(name=cog_name, value="\n".join(command_signatures), inline=False)
+		channel = self.get_destination()
+		await channel.send(embed=embed)
+@bot.event
+async def on_command_error(ctx: commands.Context, error: commands.CheckFailure):
+	if isinstance(error, tempest.InsufficientAccessLevel):
+		await ctx.send(error)
+	else:
+		raise error
 
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
+	bot.help_command = Help()
 	for ex in extensions:
 		try:
 			bot.load_extension(ex)
