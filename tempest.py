@@ -2,6 +2,7 @@ import sqlite3
 import discord
 import yaml
 import datetime as dt
+from discord.ext import commands
 try:
 	from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
