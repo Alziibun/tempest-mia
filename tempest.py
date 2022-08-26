@@ -70,7 +70,6 @@ def init(guild: discord.Guild):
 	admin = server.get_channel(admin)
 	council = server.get_channel(council)
 	notes = server.get_channel(notes)
-
 	with open('tempest.yaml', 'r') as file:
 		_roles = yaml.load(file, Loader=Loader)
 		for k, v in _roles.items():
@@ -303,5 +302,3 @@ class Database:
 		for table in table_names:
 			pragma = cls.con.execute(f"PRAGMA table_info('{table}')").fetchall()
 			yield table, pragma
-
-
