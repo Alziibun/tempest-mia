@@ -130,21 +130,44 @@ def get_days():
 		days += 1
 	return days + 1
 
+def get_day(day=1):
+	# get the day of the server as a timedelta
+	offset = tof_epoch + dt.timedelta(days = day-1)
+	if day > 0:
+		return offset.replace(hour=5, minute=0, second=0, microsecond=0)
+	return offset
+
 def get_daily_reset():
 	today = dt.datetime.now()
-	print(today.hour)
 	reset = dt.datetime(today.year, today.month, today.day)
 	if today.hour >= 5:
 		reset = reset + dt.timedelta(days=1)
-	reset.replace(hour=5, minute=0, second=0, microsecond=0)
+	reset = reset.replace(hour=5, minute=0, second=0, microsecond=0)
 	return reset
 
 def get_weekly_reset():
 	today = dt.datetime.now()
 	diff = today.weekday() - ( today.weekday() - 6) - 1
-	print(today.weekday())
 	reset = today.replace(hour=5, minute=0, second=0, microsecond=0) + dt.timedelta(days = diff)
 	return reset
+
+def get_next_cap():
+	today = get_days()
+	cap = level_caps[-1]
+	current = level_caps[-1]
+	caplist = iter(level_caps)
+	last_cap = next(caplist)
+	print('Today is', today)
+	while today < level_caps[-1][0]:
+		next_cap = next(caplist)
+		print(last_cap[0], next_cap[0])
+		if today in [day for day in range(last_cap[0], next_cap[0])]:
+			cap = next_cap
+			current = last_cap
+			break
+		last_cap = next_cap
+	return cap, current
+
 
 class Database:
 	con = None
