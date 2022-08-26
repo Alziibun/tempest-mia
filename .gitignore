@@ -1,8 +1,7 @@
 key
 mia/*
-database.sqlite3
 __pycache__/*
-database.sqlite3
 *.sqlite3
 videos/en_coco.mp4
 accolades.yml
+
