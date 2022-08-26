@@ -168,6 +168,23 @@ def get_next_cap():
 	return cap, current
 
 
+def parse_name(name):
+	try:
+		if name.startswith('d:') or name.startswith('disc:'):
+			member = ctx.guild.get_member_named(name.split(':')[1])
+			data = db.get_member(member)
+		elif name.startswith('t:') or name.startswith('tof:'):
+			data = db.get_member_by_ign(name.split(':')[1])
+			member = ctx.guild.get_member(data[0])
+		else:
+			data = db.get_member_by_ign(name)
+			member = ctx.guild.get_member(data[0])
+		if not member:
+			raise Exception('Database', f"{name} not found.")
+	except TypeError as t:
+		raise TypeError(t)
+	return member, data
+
 class Database:
 	con = None
 	cur = None
