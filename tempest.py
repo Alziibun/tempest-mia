@@ -95,6 +95,9 @@ def has_access(member: discord.Member, req):
 	# check if the member has the required av for the command
 	return True if get_rank(member)['av'] <= req else False
 
+class InsufficientAccessLevel(commands.CheckFailure):
+	pass
+
 def get_weeks():
 	since_weekly_epoch = dt.datetime.now() - tof_week_epoch
 	return since_weekly_epoch.day // 7
