@@ -58,6 +58,7 @@ async def on_member_remove(member):
 	await channel.send(embed=embed)
 
 @bot.command()
+@tempest.access()
 async def time(ctx):
 	"""
 	Shows the next daily reset, weekly reset and when the next level cap is.
