@@ -53,6 +53,7 @@ class Profile(commands.Cog):
 				   text=officer.name,
 				   icon_url=officer.display_avatar.url)
 		await ctx.channel.send(embed=embed)
+
 	@commands.command(aliases=['c'])
 	@commands.guild_only()
 	async def create(self, ctx, name: str, *, tof: str=None):
@@ -115,10 +116,6 @@ class Profile(commands.Cog):
 
 class Awards(commands.Cog):
 	pass
-
-
-
-
 
 def setup(bot):
 	bot.add_cog(Profile(bot))
