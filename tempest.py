@@ -98,6 +98,25 @@ def has_access(member: discord.Member, req):
 class InsufficientAccessLevel(commands.CheckFailure):
 	pass
 
+def access(level=255):
+	# checks version of has_access()
+	async def predicate(ctx):
+		rank = get_rank(ctx.author)
+		ranks = []
+		for role in roles.values():
+			if role['av'] <= level:
+				ranks.append(role['obj'].name)
+		if len(ranks) > 1:
+			ac_string = ', '.join(ranks[:-1])
+			ac_string += ' and ' + ranks[-1]
+		else:
+			ac_string = ranks[0]
+		if has_access(ctx.author, level):
+			return True
+		else:
+			raise InsufficientAccessLevel(f"This command is only available for {ac_string}.")
+	return commands.check(predicate)
+
 def get_weeks():
 	since_weekly_epoch = dt.datetime.now() - tof_week_epoch
 	return since_weekly_epoch.day // 7
