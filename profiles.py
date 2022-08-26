@@ -94,7 +94,7 @@ class Profile(commands.Cog):
 			db.update_officer(member)
 			ctx.reply(f"{member.name}'s officer has been removed.")
 
-	@commands.command(aliases=['reg '])
+	@commands.command(aliases=['reg'])
 	@commands.guild_only()
 	async def register(self, ctx, *, name):
 		member = ctx.author
