@@ -59,32 +59,24 @@ async def on_member_remove(member):
 
 @bot.command()
 async def time(ctx):
-	await ctx.send(f"Daily reset: <t:{int(tempest.get_daily_reset().timestamp())}:R>\nWeekly reset: <t:{int(tempest.get_weekly_reset().timestamp())}:R>")
-
-@bot.command()
-async def food(ctx):
-	async with ctx.channel.typing():
-		await ctx.send(file=discord.File("./videos/en_coco.mp4"))
-@bot.command()
-async def ev(ctx, *, cmd): # eval command for debugging and library testing
 	"""
-	reference: https://gist.github.com/simmsb/2c3c265813121492655bc95aa54da6b9
+	Shows the next daily reset, weekly reset and when the next level cap is.
 	"""
-	try:
-		cmd = cmd.strip('` ')
-	except Exception as lol:
-		await ctx.reply(lol)
-	print("evaluation", cmd)
-	env = {
-		'bot': ctx.bot,
-		'discord': discord,
-		'commands': commands,
-		'ctx': ctx,
-		'__import__': __import__
-	}
-
-	result = eval(f'{cmd}')
-	await ctx.reply(result)
+	cap2, cap1 = tempest.get_next_cap()
+	current_cap = tempest.get_day(cap1[0])
+	next_cap = tempest.get_day(cap2[0])
+	embed = discord.Embed(
+		title='Tower of Fantasy clock',
+		description = '*times are shown in **your timezone**.  Hover over the time to see the full date.*')
+	embed.add_field(
+		name  = 'Reset times',
+		value = f"Daily reset: <t:{int(tempest.get_daily_reset().timestamp())}:R>\nWeekly reset: <t:{int(tempest.get_weekly_reset().timestamp())}:R>"
+	)
+	embed.add_field(
+		name  = 'Level cap',
+		value = f"As of <t:{int(current_cap.timestamp())}:R> the level cap is **{cap1[1]}**\nThe level cap will raise to **{cap2[1]}** <t:{int(next_cap.timestamp())}:R>."
+	)
+	await ctx.send(embed=embed)
 
 @bot.command()
 async def commit(ctx, *, query: str):
