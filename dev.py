@@ -4,8 +4,19 @@ import datetime as dt
 from discord.ext import commands
 from tempest import Database as db
 
+devs = [90893355029921792]
+
 class Developer(commands.Cog):
-	@bot.command()
+
+	def __init__(self, bot):
+		self.bot = bot
+
+	async def cog_check(self, ctx):
+		if ctx.author.id in devs:
+			return True
+		await ctx.send('Only developers can use this command.')
+
+	@commands.command()
 	async def commit(self, ctx, *, query: str):
 		"""
 		Commit to database
@@ -18,7 +29,7 @@ class Developer(commands.Cog):
 		except Exception as e:
 			await ctx.reply(f'Commit failed.\nError: {e}')
 
-	@bot.command()
+	@commands.command()
 	async def schema(self, ctx):
 		"""
 		Display database schema.
@@ -42,6 +53,8 @@ class Developer(commands.Cog):
 			embeds.append(_embed)
 			print(table_name)
 		await ctx.send(embeds=embeds)
+
+
 
 def setup(bot):
 	bot.add_cog(Developer(bot))
