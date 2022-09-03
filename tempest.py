@@ -2,6 +2,7 @@ import sqlite3
 import discord
 import yaml
 import datetime as dt
+import asyncio
 from discord.ext import commands
 try:
 	from yaml import CLoader as Loader, CDumper as Dumper
@@ -16,6 +17,7 @@ officer = 942230610246774851
 admin   = 942230610246774849
 council = 942230610246774846
 notes   = 1008223604170825788
+botdev  = 1008346539879563314
 
 accolades = [
 	"Leveling",
@@ -23,6 +25,9 @@ accolades = [
 	"Wormhole",
 	"Contribution"
 ]
+
+active_period = 0
+min_contribution = 0
 
 level_caps = [
 	( 1, 18),
@@ -63,21 +68,45 @@ level_caps = [
 
 tof_epoch = dt.datetime(2022, 8, 10, hour=20)
 tof_week_epoch = dt.datetime(2022, 8, 15, hour=5)
+schedule = [
+	("Monday", "**Void Rift** day 1"),
+	("Tuesday", "**Frontier Clash** day 1"),
+	("Wednesday", "**Void Rift** day 2"),
+	("Thursday", "**Frontier day** 2"),
+	("Friday", "**Void Rift** day 3"),
+	("Saturday", "**Frontier Clash** day 3"),
+	("Sunday", "*Nothing new today!  Time to relax~*")
+]
+kitchen = [
+	( 5, 'Breakfast'),
+	(12, 'Lunch'),
+	(18, 'Dinner')
+]
 def init(guild: discord.Guild):
 	print(f'Initiating {guild.name} as Tempest server.')
-	global server, roles, officer, admin, council, notes
+	global server, roles, officer, admin, council, notes, botdev, TANK, HEALER, DPS
 	server = guild
 	officer = server.get_channel(officer)
 	admin = server.get_channel(admin)
 	council = server.get_channel(council)
 	notes = server.get_channel(notes)
+	botdev = server.get_channel(botdev)
 	with open('tempest.yaml', 'r') as file:
-		_roles = yaml.load(file, Loader=Loader)
+		data = yaml.load(file, Loader=Loader)
+		_roles = data['roles']
+		_act = data['activity']
+		global min_contribution, active_period
+		active_period = _act['period']
+		min_contribution = _act['minimum']
 		for k, v in _roles.items():
 			roles[k] = {
 				'av'  : v['access'],
 				'obj' : guild.get_role(v['id'])
 				}
+		del data
+async def wait_until_ready():
+	while server is None:
+		await asyncio.sleep(1)
 
 def get_roles():
 	# return roles as a list
@@ -147,7 +176,7 @@ def get_daily_reset():
 
 def get_weekly_reset():
 	today = dt.datetime.now()
-	diff = today.weekday() - ( today.weekday() - 6) - 1
+	diff = 7 -  today.weekday()
 	reset = today.replace(hour=5, minute=0, second=0, microsecond=0) + dt.timedelta(days = diff)
 	return reset
 
@@ -168,7 +197,23 @@ def get_next_cap():
 		last_cap = next_cap
 	return cap, current
 
+def get_kitchen():
+	today = dt.datetime.now()
+	hour = today.hour
+	schedule = iter(kitchen)
+	prev_time = next(schedule)
+	while hour < kitchen[-1][0]:
+		next_time = next(schedule)
+		if hour in [t for t in range(prev_time[0], next_time[0])]:
+			event = next_time[1]
+			now = today.replace(hour=next_time[0], minute=0, second=0, microsecond=0)
+			break
+		prev_time = next_time
+	else:
+		event = kitchen[0][1]
+		now = get_daily_reset().replace(hour=kitchen[0][0], minute=0, second=0, microsecond=0)
 
+	return now, event
 def parse_name(name):
 	try:
 		if name.startswith('d:') or name.startswith('disc:'):
@@ -206,12 +251,16 @@ class Database:
 		cls.con.commit()
 
 	@classmethod
-	def add_member(cls, member: discord.Member, ign='NULL', officer=0, ismember: bool=False):
+	def add_member(cls, member: discord.Member=0, ign='NULL', officer=0):
+		if member:
+			id = member.id
+		else:
+			id = 0
 		query = f"""
 		INSERT INTO
-		   members (id, ign, officer, member)
+		   members (id, ign, officer)
 		VALUES
-		   ({member.id}, '{ign}', {officer}, {bool(ismember)});
+		   ({id}, '{ign}', {officer});
 		"""
 		
 		cls.commit(query)
@@ -252,13 +301,6 @@ class Database:
 			return cls.cur.execute(f"SELECT * FROM members WHERE ign='{tof}'").fetchone()
 		except:
 			return print('Unable to find Tower of Fantasy username:', tof, 'in database.')
-	@classmethod
-	def fetch_members_by_officer(cls, officer: discord.Member):
-		# returns a list of rows (tuple) related to an officer
-		try:
-			return cls.cur.execute(f"SELECT * FROM members WHERE officer={officer.id}").fetchall()
-		except:
-			return print('Unable to locate officer by ID')
 
 	@classmethod
 	def update_officer(cls, member: discord.Member, officer: discord.Member=0):
@@ -307,10 +349,21 @@ class Database:
 			print('Adding contribution')
 		cls.commit(query)
 
+	#     FETCHING
+
 	@classmethod
 	def fetch_contributions(cls, member: discord.Member):
 		result = cls.cur.execute(f"SELECT * FROM contributions WHERE memberid={member.id} ORDER BY day").fetchall()
 		return result
+
+	@classmethod
+	def fetch_members_by_officer(cls, officer: discord.Member):
+		# returns a list of rows (tuple) related to an officer
+		try:
+			return cls.cur.execute(f"SELECT * FROM members WHERE officer={officer.id}").fetchall()
+		except:
+			return print('Unable to locate officer by ID')
+
 
 	@classmethod
 	@property
