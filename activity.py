@@ -2,13 +2,15 @@ import discord
 import math
 import datetime as time
 import tempest
+import asyncio
 from tempest import Database as db
 from datetime import timedelta
-from discord.ext import commands
+from discord.ext import tasks, commands
 
 class Activity(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.logging_reminder.start()
 
 	@commands.command(aliases=['ireg'])
 	@tempest.access(3)
@@ -24,7 +26,7 @@ class Activity(commands.Cog):
 		# (CASE SENSITIVE) Looks for a member with the same name or nickname.  If a discriminator is provided, looks for that user directly.
 		member = ctx.guild.get_member_named(name)
 		data = db.get_member(member)
-		ign = data[1]
+		ign = data[2]
 		period = time.datetime.now() + timedelta(days=days)
 		embed = discord.Embed(
 			title 		= ign,
@@ -108,6 +110,43 @@ class Activity(commands.Cog):
 		for day in data:
 			body += f"Day: {day[3]} | {day[2]} honor.\n"
 		await ctx.send(body)
+
+	async def almost_reset(self):
+		today = time.datetime.now()
+		reset = tempest.get_daily_reset()
+		before = reset - time.timedelta(hours=1)
+		if before <= today > reset:
+			return True
+		return False
+
+	async def remind_officers(self):
+		await tempest.botdev.send('Task test.')
+		pass
+
+	@tasks.loop(hours=1.0)
+	async def logging_reminder(self):
+		if await self.almost_reset():
+			await self.remind_officers()
+		print('hour passed')
+
+	@logging_reminder.before_loop
+	async def wait_until_hour(self):
+		print('awaiting bot')
+		await self.bot.wait_until_ready()
+		print('bot ready')
+		today = time.datetime.now()
+		future = time.datetime(today.year, today.month, today.day, today.hour)
+		future += time.timedelta(hours=1)
+		diff = future-today
+		print(f'{diff.total_seconds()} seconds until new hour to begin reminder.')
+		await tempest.wait_until_ready()
+		await asyncio.sleep( diff.total_seconds() )
+		if await self.almost_reset():
+			await self.remind_officers()
+		# when the hour is fresh
+
+
+
 
 def setup(bot):
 	bot.add_cog(Activity(bot))
