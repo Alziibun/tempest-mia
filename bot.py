@@ -15,7 +15,7 @@ intents.messages = True # This enables the bot to request things like message hi
 intents.message_content = True
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
-extensions = ['activity', 'profiles']
+extensions = ['activity', 'profiles', 'dev']
 
 bot = commands.Bot(command_prefix='mi-', intents=intents)
 
@@ -49,10 +49,10 @@ async def on_member_remove(member):
 		icon_url    = member.display_avatar.url)
 	data = db.get_member(member)
 	try:
-		if data[1] != 'NULL':
+		if data[2] != 'NULL':
 			embed.add_field(
 				name  = "Tower of Fantasy",
-				value = f"{data[1]}")
+				value = f"{data[2]}")
 	except:
 		print('No TOF name.')
 	await channel.send(embed=embed)
@@ -63,9 +63,12 @@ async def time(ctx):
 	"""
 	Shows the next daily reset, weekly reset and when the next level cap is.
 	"""
+	today = dt.datetime.now()
 	cap2, cap1 = tempest.get_next_cap()
 	current_cap = tempest.get_day(cap1[0])
 	next_cap = tempest.get_day(cap2[0])
+	next_meal, meal_name = tempest.get_kitchen()
+	day_name, ch_name = tempest.schedule[today.weekday()]
 	embed = discord.Embed(
 		title='Tower of Fantasy clock',
 		description = '*times are shown in **your timezone**.  Hover over the time to see the full date.*')
@@ -76,6 +79,16 @@ async def time(ctx):
 	embed.add_field(
 		name  = 'Level cap',
 		value = f"As of <t:{int(current_cap.timestamp())}:R> the level cap is **{cap1[1]}**\nThe level cap will raise to **{cap2[1]}** <t:{int(next_cap.timestamp())}:R>."
+	)
+	embed.add_field(
+		name  = 'Mi-a\'s Kitchen',
+		value = f"Mi-a will be serving __{meal_name}__ <t:{int(next_meal.timestamp())}:R>!",
+		inline= False
+	)
+	embed.add_field(
+		name  = f"{day_name}'s challenge",
+		value = ch_name,
+		inline= False
 	)
 	await ctx.send(embed=embed)
 
