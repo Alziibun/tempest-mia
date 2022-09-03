@@ -10,8 +10,8 @@ class Profile(commands.Cog):
 		self.bot = bot
 		if not db.con: db() # initialize if not already
 
-	@commands.command(aliases=['p', 'pro'])
-	async def profile(self, ctx, name: str=None, lookup: str='discord'):
+	@commands.command()
+	async def profile(self, ctx):
 		"""
 		Shows ToF name, discord mention, guild rank and activity monitoring officer.
 		"""
@@ -21,22 +21,15 @@ class Profile(commands.Cog):
 			match lookup:
 				case 't' | 'tof':
 					data = db.get_member_by_ign(name)
-					member = ctx.guild.get_member(data[0]) # data[0] is the member's ID
+					member = ctx.guild.get_member(data[1]) # data[0] is the member's ID
 				case 'd' | 'discord':
 					member = ctx.guild.get_member_named(name)
 					data = db.get_member(member)
 		else:
 			data = db.get_member(member) # default data if no arguments applied
-		""" 
-		retrieve member info from database
-		< Indexes : data >
-		0: member ID
-		1: IGN
-		2: officer
-		3: member BOOL
-		"""
-		ign = data[1]
-		officer = ctx.guild.get_member(data[2])
+		# retrieve member info from database
+		ign = data[2]
+		officer = ctx.guild.get_member(data[3])
 		role = tempest.get_rank(member)['obj']
 		# create the embed
 		embed = discord.Embed(
@@ -71,7 +64,7 @@ class Profile(commands.Cog):
 			await ctx.message.delete()
 			return
 		if not tof: return await ctx.reply(f"Tower of Fantasy IGN required. `mi-register <name> <ign>")
-		db.add_member(member, tof, ismember=tempest.has_access(member, 4)) # has_access to check if the member is a guest or not
+		db.add_member(member, tof) # has_access to check if the member is a guest or not
 		message = await ctx.send(f"{member.display_name}'s profile has been created!")
 		await message.delete(delay=5)
 		await ctx.message.delete()
@@ -111,13 +104,15 @@ class Profile(commands.Cog):
 			return
 		if db.get_member(member):
 			db.update_ign(member, name)
-			await ctx.message.delete()
-			print(await ctx.reply("Your IGN has been updated!"))
+			await ctx.message.delete(delay=10)
+			reply = await ctx.reply("Your IGN has been updated!")
+			await reply.delete(delay=10)
 			return
 		# default operation
-		db.add_member(member, name, ismember = tempest.has_access(member, 4))
-		await ctx.message.delete()
-		await ctx.reply("Your profile has been created!").delete(10)
+		db.add_member(member, name)
+		reply = await ctx.reply("Your profile has been created!")
+		await ctx.message.delete(delay=10)
+		await reply.delete(delay=10)
 
 
 class Awards(commands.Cog):
