@@ -65,10 +65,12 @@ class Role:
 
     @property
     def emoji(self):
+        # discord.Emoji
         return self._emoji
 
     @property
     def role(self):
+        # discord.Role
         return self._role
 
 class Member:
@@ -78,6 +80,7 @@ class Member:
 
     @property
     def role(self):
+        # Role class
         return self._role
 
     @property
@@ -86,13 +89,23 @@ class Member:
 
     @property
     def id(self):
+        # discord.Member.id
         return self._member.id
 
     @property
     def mention(self):
+        # discord.Member.mention
         return self._member.mention
 
 class Party:
+    """
+    Class that handles party information.
+    Usage:
+    - new party
+    var = Party(ctx, 'joint op')
+    - adding a party to the global list
+    parties[str(leader.id)] = self
+    """
     def __init__(self, ctx, activity=None):
         server = ctx.guild
         leader = ctx.author
@@ -110,10 +123,16 @@ class Party:
 
     @property
     def members(self):
+        """
+        Return a list of members as discord.Member references
+        """
         return [member.member for member in self._members]
 
     @property
     def rich_members(self):
+        """
+        Used for embed.  Returns the list of party members with their role emoji.
+        """
         body = ''
         for member in self._members:
             body += f"{str(member.role.emoji)} {member.mention}\n"
@@ -146,10 +165,17 @@ class LFG(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def party(self, ctx):
+        """
+        Manage your party.
+        """
         pass
 
     @party.command()
     async def create(self, ctx, *, activity: str=None):
+        """
+        Create a party.
+        """
+        # creates an embed and adds it to a channel that doesn't exist
         match activity.split():
             case ['j', *args]:
                 p = Party(ctx, activity)
