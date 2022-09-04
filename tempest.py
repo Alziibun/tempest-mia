@@ -215,16 +215,18 @@ def get_kitchen():
 
 	return now, event
 def parse_name(name):
+	db = Database
 	try:
 		if name.startswith('d:') or name.startswith('disc:'):
-			member = ctx.guild.get_member_named(name.split(':')[1])
+			member = server.get_member_named(name.split(':')[1])
 			data = db.get_member(member)
 		elif name.startswith('t:') or name.startswith('tof:'):
+			print(name.split(':'))
 			data = db.get_member_by_ign(name.split(':')[1])
-			member = ctx.guild.get_member(data[0])
+			member = server.get_member(data[0])
 		else:
 			data = db.get_member_by_ign(name)
-			member = ctx.guild.get_member(data[0])
+			member = server.get_member(data[0])
 		if not member:
 			raise Exception('Database', f"{name} not found.")
 	except TypeError as t:
