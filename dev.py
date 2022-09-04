@@ -14,7 +14,7 @@ class Developer(commands.Cog):
 	async def cog_check(self, ctx):
 		if ctx.author.id in devs:
 			return True
-		await ctx.send('Only developers can use this command.')
+		return False
 
 	@commands.command()
 	async def commit(self, ctx, *, query: str):
