@@ -11,7 +11,7 @@ class Profile(commands.Cog):
 		if not db.con: db() # initialize if not already
 
 	@commands.command()
-	async def profile(self, ctx):
+	async def profile(self, ctx, name='', lookup='discord'):
 		"""
 		Shows ToF name, discord mention, guild rank and activity monitoring officer.
 		"""
@@ -114,9 +114,53 @@ class Profile(commands.Cog):
 		await ctx.message.delete(delay=10)
 		await reply.delete(delay=10)
 
+		@register.error
+		async def on_command_error(ctx: discord.Context, error: commands.CommandError):
+			if isinstance(error, commands.MissingRequiredArgument):
+				reply = await ctx.send('Please type your TOF username.  Case sensitive.')
+				await reply.delete(delay=10)
+				await ctx.message.delete(delay=10)
+			else:
+				raise error
+
+class Application(discord.ui.Modal):
+	def __init__(self, *args, **kwags) -> None:
+		super().__init__(*args, **kwags)
+
+		self.add_item(discord.ui.InputText(label='Tower of Fantasy name', min_length=2, max_length=32, required=True))
+		self.add_item(discord.ui.InputText(label='Level', min_length=1, max_length=2, required=True))
+		self.add_item(discord.ui.InputText(label='Note/Activity', max_length=200, style=discord.InputTextStyle.long, required=False))
+
+	async def callback(self, interaction: discord.Interaction):
+		ign = self.children[0].value
+		level = self.children[1].value
+		note = self.children[2].value
+		member = interaction.user
+		embed = discord.Embed(title=f"{ign}'s application", description=member.mention)
+		embed.add_field(name='Level', value=level)
+		if note:
+			embed.add_field(name='Note', value=note)
+		embed.set_thumbnail(url=member.display_avatar.url)
+
+		app_channel = tempest.server.get_channel(1016090752222232650)
+		await app_channel.send(embed=embed)
+		await interaction.response.send_message('Your application has been sent.', ephemeral=True)
+		
+class Membership(commands.Cog):
+	def __init__(self, bot):
+		self.bot = bot
+		if not db.con: db()
+
+	@commands.slash_command()
+	async def apply(self, ctx: discord.ApplicationContext):
+		app = Application(title='Test Application')
+		await ctx.send_modal(app)
+
+
 
 class Awards(commands.Cog):
 	pass
 
 def setup(bot):
 	bot.add_cog(Profile(bot))
+	bot.add_cog(Membership(bot))
