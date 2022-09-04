@@ -123,6 +123,20 @@ class Profile(commands.Cog):
 			else:
 				raise error
 
+class ApplicationControls(discord.ui.View):
+	def __init__(self, member_id, tof_ign, *args, **kwargs):
+		super().__init__(timeout=None, *args, **kwargs)
+		self.member_id = member_id
+		self.tof_ign = tof_ign
+	@discord.ui.button(label='Accept', style=discord.ButtonStyle.success)
+	async def button_callback(self, button, interaction):
+		if interaction.message:
+			await interaction.message.delete()
+		app_channel = tempest.server.get_channel(1016090752222232650)
+		member = tempest.server.get_member(self.member_id)
+		await app_channel.send(f"✅ {member.mention}'s (**{self.tof_ign}**) application was accepted")
+
+
 class Application(discord.ui.Modal):
 	def __init__(self, *args, **kwags) -> None:
 		super().__init__(*args, **kwags)
@@ -143,8 +157,12 @@ class Application(discord.ui.Modal):
 		embed.set_thumbnail(url=member.display_avatar.url)
 
 		app_channel = tempest.server.get_channel(1016090752222232650)
-		await app_channel.send(embed=embed)
-		await interaction.response.send_message('Your application has been sent.', ephemeral=True)
+		await app_channel.send(embed=embed, view=ApplicationControls(member_id=member.id, tof_ign=ign))
+		body = """
+		Thank you for applying to join Tempest.  Unfortunately **Tempest is __full__**.  We transfer active, high-contribution, talkative members from **Aurora**.
+		**You will need to apply to Aurora**, our second crew, in-game.
+		"""
+		await interaction.response.send_message(body, ephemeral=True)
 
 class Membership(commands.Cog):
 	def __init__(self, bot):
