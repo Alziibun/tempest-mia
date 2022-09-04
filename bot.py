@@ -17,7 +17,7 @@ intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'
 
 extensions = ['activity', 'membership', 'dev']
 
-bot = commands.Bot(command_prefix='mi-', intents=intents)
+bot = commands.Bot(command_prefix='mi-', intents=intents, debug_guilds=[942230609701511228])
 
 @bot.event # lines of code that start with @ in Python are "Decorators".  They're basically methods that act on the method being declared on the line after.
 async def on_ready():

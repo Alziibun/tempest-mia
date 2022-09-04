@@ -100,21 +100,22 @@ class Activity(commands.Cog):
 		db.add_contribution(member, value)
 		await ctx.send(f"{data[1]}'s contributions have been recorded.")
 
-	@commands.command(aliases=['act'])
+	@commands.slash_command()
 	@commands.guild_only()
 	@tempest.access(3)
 	async def activity(self, ctx, name: str=''):
 		member, data = tempest.parse_name(name)
-		data = db.fetch_contributions()
+		data = db.fetch_contributions(member)
 		body = ''
 		for day in data:
 			body += f"Day: {day[3]} | {day[2]} honor.\n"
-		await ctx.send(body)
+		await ctx.respond(body)
 
 	async def almost_reset(self):
 		today = time.datetime.now()
 		reset = tempest.get_daily_reset()
 		before = reset - time.timedelta(hours=1)
+		print(before, reset)
 		if before <= today > reset:
 			return True
 		return False
