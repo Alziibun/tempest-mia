@@ -145,7 +145,7 @@ class Application(discord.ui.Modal):
 		app_channel = tempest.server.get_channel(1016090752222232650)
 		await app_channel.send(embed=embed)
 		await interaction.response.send_message('Your application has been sent.', ephemeral=True)
-		
+
 class Membership(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
