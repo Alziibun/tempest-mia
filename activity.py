@@ -5,12 +5,20 @@ import tempest
 import asyncio
 from tempest import Database as db
 from datetime import timedelta
+from discord.commands import SlashCommandGroup
 from discord.ext import tasks, commands
+
+current_period = None
+
+class RapidEditingControls(discord.ui.View):
+	pass
+class ContEditForm(discord.ui.Modal):
+	pass
 
 class Activity(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.logging_reminder.start()
+		self.main.start()
 
 	@commands.command(aliases=['ireg'])
 	@tempest.access(3)
@@ -87,29 +95,54 @@ class Activity(commands.Cog):
 		)
 		await ctx.send(embed=embed)
 
-	@commands.command()
-	@commands.guild_only()
-	@tempest.access(3)
-	async def add(self, ctx, name: str, value: int):
-		try:
-			member, data = tempest.parse_name(name)
-		except TypeError:
-			return await ctx.send('Could not find member in database.')
-		except Exception as e:
-			print(e)
-		db.add_contribution(member, value)
-		await ctx.send(f"{data[1]}'s contributions have been recorded.")
+	activity = SlashCommandGroup('activity', 'Manage member activity', checks=[tempest.access(3).predicate])
 
-	@commands.slash_command()
-	@commands.guild_only()
-	@tempest.access(3)
-	async def activity(self, ctx, name: str=''):
-		member, data = tempest.parse_name(name)
-		data = db.fetch_contributions(member)
-		body = ''
-		for day in data:
-			body += f"Day: {day[3]} | {day[2]} honor.\n"
-		await ctx.respond(body)
+	@activity.command()
+	async def edit(self, ctx, ign: str, points: int):
+		data = db.get_member_by_ign(ign)
+		if not data:
+			await ctx.respond(f"Unable to find member by the name of `{ign}`.  They may not exist in the database.\n> Hint: Tower of Fantasy IGNs are case-sensitive.", ephemeral=True)
+		else:
+			member = tempest.server.get_member(data[1])
+			db.set_contribution(member, points)
+			await ctx.respond(f"{ign}'s contributions have been recorded.", ephemeral=True)
+
+	@activity.command()
+	async def view(self, ctx, ign: str=None, user: discord.Member=None):
+		if ign and user:
+			return await ctx.respond('Use either TOF ign or Discord name.  Not both.', ephemeral=True)
+		elif ign:
+			data = db.get_member_by_ign(ign)
+			if not data:
+				return await ctx.respond(f'Unable to find `{ign}` in the database.\n> Hint: ToF names are case-sensitive.')
+		elif user:
+			data = db.get_member(user)
+			if not data:
+				return await ctx.respond(f"Unable to find {user.mention}")
+		else:
+			data = db.get_member(ctx.author)
+			if not data:
+				return await ctx.respond(f"Can't find your profile.")
+		member = tempest.server.get_member(data[1])
+		first_day = current_period[1]
+		last_day = current_period[2]
+		embed = discord.Embed(title=f"{data[2]}'s activity", description=member.mention)
+		conts = db.fetch_contributions(member)
+		values = list()
+		for k, id, points, day in conts:
+			if first_day <= day >= last_day:
+				values.append(f"[`DAY {day}`] points: `{points}`")
+		embed.add_field(name=f'Contributions (Day {first_day} - {last_day})', value='\n'.join(values))
+		embed.add_field(name="Total Contribution (this period)", value=db.totals_by_period(member, current_period[0]), inline=False)
+		await ctx.respond(embed=embed)
+
+
+
+
+
+
+
+
 
 	async def almost_reset(self):
 		today = time.datetime.now()
@@ -122,30 +155,48 @@ class Activity(commands.Cog):
 
 	async def remind_officers(self):
 		await tempest.botdev.send('Task test.')
-		pass
 
-	@tasks.loop(hours=1.0)
-	async def logging_reminder(self):
-		if await self.almost_reset():
-			await self.remind_officers()
-		print('hour passed')
+	async def validate_period(self):
+		data  = db.fetch_current_period()
+		today = tempest.get_days()
+		start = data[1]
+		end   = data[2]
+		if start <= today >= end:
+			return True # the period is still valid
+		else:
+			next = tempest.get_day(today + tempest.active_period - 1).days # today is included in the time period, subtract day by 1
+			db.new_period(today, next)
+			return False # a new period was started
 
-	@logging_reminder.before_loop
 	async def wait_until_hour(self):
-		print('awaiting bot')
-		await self.bot.wait_until_ready()
-		print('bot ready')
 		today = time.datetime.now()
 		future = time.datetime(today.year, today.month, today.day, today.hour)
 		future += time.timedelta(hours=1)
-		diff = future-today
-		print(f'{diff.total_seconds()} seconds until new hour to begin reminder.')
-		await tempest.wait_until_ready()
+		diff = future - today
+		print('Waiting until the next hour')
 		await asyncio.sleep( diff.total_seconds() )
+
+	@tasks.loop(hours=1.0)
+	async def main(self):
+		print('| [PERIOD] validating period')
+		validate_period()
+		global current_period
+		current_period = db.fetch_current_period()
+		if await self.almost_reset():
+			await self.remind_officers()
+
+	@main.before_loop
+	async def before_main(self):
+		print('hello')
+		await self.bot.wait_until_ready()
+		await tempest.wait_until_ready()
+		print('Tempest and Bot ready.')
+		global current_period
+		current_period = db.fetch_current_period()
+		await self.wait_until_hour()
 		if await self.almost_reset():
 			await self.remind_officers()
 		# when the hour is fresh
-
 
 
 

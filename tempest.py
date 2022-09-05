@@ -189,8 +189,8 @@ def get_next_cap():
 	print('Today is', today)
 	while today < level_caps[-1][0]:
 		next_cap = next(caplist)
-		print(last_cap[0], next_cap[0])
-		if today in [day for day in range(last_cap[0], next_cap[0])]:
+		print(last_cap[0]+1, next_cap[0])
+		if today in [day for day in range(last_cap[0]+1, next_cap[0]+1)]:
 			cap = next_cap
 			current = last_cap
 			break
@@ -326,21 +326,35 @@ class Database:
 		print('Updated ign for', member.name)
 
 	@classmethod
-	def add_contribution(cls, member: discord.Member, value: int):
+	def set_contribution(cls, member: discord.Member, value: int):
 		# check if contribution exists for today
 		today = get_days()
-		result = cls.cur.execute(f"SELECT * FROM contributions WHERE day={today}").fetchall()
+		result = cls.cur.execute(f"SELECT * FROM contributions WHERE memberid = {member.id} ORDER BY day").fetchall()
+		recent_day = 0
+		total = 0
+		day1, dayx = cls.this_week()
+		for key, id, points, day in result:
+			if day1 <= get_day(day) > dayx and day is not get_days():
+				# total up all points from the week earlier
+				recent_day = get_day(day)
+				total += points
+		diff = value - total
+		if diff < 0:
+			print(diff)
+			raise ValueError('Members cannot gain negative contribution.')
+
+		result = cls.cur.execute(f"SELECT * FROM contributions WHERE memberid = {member.id} ORDER BY day").fetchall()
 		relative = []
 		if len(result):
 			relative = [row[1] for row in result]
-		if member.id in relative:
-			row = result[relative.index(member.id)]
-			query = f"""
-			UPDATE contributions
-			SET points = {row[2] + value}
-			WHERE day = {today}
-			"""
-			print('Updating contributions')
+			if member.id in relative:
+				row = result[relative.index(member.id)]
+				query = f"""
+				UPDATE contributions
+				SET points = {diff}
+				WHERE day = {today}
+				"""
+				print('Updating contributions')
 		else:
 			query = f"""
 			INSERT INTO
@@ -350,6 +364,42 @@ class Database:
 			"""
 			print('Adding contribution')
 		cls.commit(query)
+
+	@classmethod
+	def fetch_current_period(cls):
+		return cls.cur.execute("SELECT * FROM periods WHERE id = (SELECT MAX(id) FROM periods)").fetchone()
+	@classmethod
+	def new_period(cls, day1, day2):
+		# create a new activity period
+		result = cls.fetch_current_period()
+		if day1 > result[0]:
+			query = f"""
+			INSERT INTO
+				periods (first_day, last_day)
+			VALUES
+				({day1}, {day2})
+			"""
+			cls.commit(query)
+	@classmethod
+	def this_week(cls):
+		today = dt.datetime.now()
+		offset = get_days() - today.weekday()
+		real = get_day(day=offset)
+		return real, get_weekly_reset()
+
+
+
+	@classmethod
+	def totals_by_period(cls, member: discord.Member, period_id):
+		sel = cls.cur.execute(f"SELECT first_day, last_day FROM periods WHERE id={period_id}").fetchone()
+		conts = cls.cur.execute(f'SELECT * FROM contributions WHERE memberid={member.id} ORDER BY day').fetchall()
+		total = 0
+		for key, id, points, day in conts:
+			if sel[0] <= day >= sel[1]:
+				total += points
+		print('Totaled', total)
+		return total
+
 
 	#     FETCHING
 
