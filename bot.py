@@ -1,7 +1,8 @@
 import tempest
 import discord
 import datetime as dt
-from discord.ext import commands
+
+from discord.ext import commands, bridge
 from tempest import Database as db
 from sqlite3 import Error
 intents = discord.Intents.default()
@@ -92,11 +93,27 @@ async def time(ctx):
 	)
 	await ctx.send(embed=embed)
 
-
 @bot.command()
 async def food(ctx):
 	async with ctx.channel.typing():
 		await ctx.send(file=discord.File("./videos/en_coco.mp4"))
+
+def is_developer():
+	async def predicate(ctx):
+		if ctx.author.id in tempest.devs:
+			return True
+		return False
+	return commands.check(predicate)
+
+@bot.slash_command()
+@is_developer()
+async def load(self, ctx, extension):
+	try:
+		bot.load_extension(extension)
+	except Exception as e:
+		exc = "{}: {}".format(type(e).__name__, e)
+		await ctx.respond('Failed to load extension {}\n{}'.format(ex, exc))
+
 
 class Help(commands.HelpCommand):
 	async def send_bot_help(self, mapping):

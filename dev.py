@@ -4,15 +4,16 @@ import datetime as dt
 from discord.ext import commands
 from tempest import Database as db
 
-devs = [90893355029921792]
+
 
 class Developer(commands.Cog):
 
 	def __init__(self, bot):
 		self.bot = bot
+		if not db.con: db()
 
 	async def cog_check(self, ctx):
-		if ctx.author.id in devs:
+		if ctx.author.id in tempest.devs:
 			return True
 		return False
 
@@ -54,6 +55,9 @@ class Developer(commands.Cog):
 			print(table_name)
 		await ctx.send(embeds=embeds)
 
+	@commands.slash_command()
+	async def promote(self, ctx, user: discord.Member):
+		tempest.promote(user)
 
 
 def setup(bot):

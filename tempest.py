@@ -3,6 +3,7 @@ import discord
 import yaml
 import datetime as dt
 import asyncio
+from enum import Enum
 from discord.ext import commands
 try:
 	from yaml import CLoader as Loader, CDumper as Dumper
@@ -18,6 +19,11 @@ admin   = 942230610246774849
 council = 942230610246774846
 notes   = 1008223604170825788
 botdev  = 1008346539879563314
+apps    = 1017353554693992448
+mem_log = 1017566996604391424
+
+member_role = 1008632049558634496
+visitor_role = 942230609739251734
 
 accolades = [
 	"Leveling",
@@ -25,6 +31,8 @@ accolades = [
 	"Wormhole",
 	"Contribution"
 ]
+
+devs = [90893355029921792]
 
 active_period = 0
 min_contribution = 0
@@ -84,13 +92,18 @@ kitchen = [
 ]
 def init(guild: discord.Guild):
 	print(f'Initiating {guild.name} as Tempest server.')
-	global server, roles, officer, admin, council, notes, botdev, TANK, HEALER, DPS
+	global server, roles, officer, admin, council, notes, botdev, TANK, HEALER, DPS, apps, mem_log
 	server = guild
 	officer = server.get_channel(officer)
 	admin = server.get_channel(admin)
 	council = server.get_channel(council)
 	notes = server.get_channel(notes)
 	botdev = server.get_channel(botdev)
+	apps = server.get_channel(apps)
+	mem_log = server.get_channel(mem_log)
+	global member_role, visitor_role
+	member_role = server.get_role(member_role)
+	visitor_role = server.get_role(visitor_role)
 	with open('tempest.yaml', 'r') as file:
 		data = yaml.load(file, Loader=Loader)
 		_roles = data['roles']
@@ -107,6 +120,11 @@ def init(guild: discord.Guild):
 async def wait_until_ready():
 	while server is None:
 		await asyncio.sleep(1)
+
+class errors(Enum):
+	DOUBLE_NAME_INPUT = "Please use either IGN or user, not both!"
+	IGN_NaN = "Couldn't find someone by that name!\n> *ToF IGNs are case-sensitive.*"
+	MEMBER_NaN = "This user is not in the database."
 
 def get_roles():
 	# return roles as a list
@@ -155,9 +173,10 @@ def get_days():
 	now = dt.datetime.now()
 	since_epoch = now - tof_epoch
 	days = since_epoch.days
-	if now.hour >= 5:
-		days += 1
-	return days + 1
+	reset = get_daily_reset()
+	if now.hour < 5 and now.day is reset.day:
+		days -= 1
+	return days + 2 # +1 prevents day 0 from existing
 
 def get_day(day=1):
 	# get the day of the server as a timedelta
@@ -189,8 +208,8 @@ def get_next_cap():
 	print('Today is', today)
 	while today < level_caps[-1][0]:
 		next_cap = next(caplist)
-		print(last_cap[0]+1, next_cap[0])
-		if today in [day for day in range(last_cap[0]+1, next_cap[0]+1)]:
+		print(last_cap[0], next_cap[0]-1)
+		if today in [day for day in range(last_cap[0], next_cap[0])]:
 			cap = next_cap
 			current = last_cap
 			break
@@ -200,10 +219,13 @@ def get_next_cap():
 def get_kitchen():
 	today = dt.datetime.now()
 	hour = today.hour
-	schedule = iter(kitchen)
-	prev_time = next(schedule)
-	while hour < kitchen[-1][0]:
-		next_time = next(schedule)
+	print(hour)
+	_schedule = iter(kitchen)
+	prev_time = next(_schedule)
+	while kitchen[0][0] < hour < kitchen[-1][0]:
+		next_time = next(_schedule)
+		pass
+		print(prev_time[0], next_time[0])
 		if hour in [t for t in range(prev_time[0], next_time[0])]:
 			event = next_time[1]
 			now = today.replace(hour=next_time[0], minute=0, second=0, microsecond=0)
@@ -232,6 +254,26 @@ def parse_name(name):
 	except TypeError as t:
 		raise TypeError(t)
 	return member, data
+
+async def promote(member):
+	ranks = [role['obj'] for name, role in roles.items()]
+	member_rank = get_rank(member)['obj']
+	rank_index = ranks.index(member_rank)
+	if rank_index > 1:
+		if visitor_role in member.roles:
+			await member.remove_roles(visitor_role, reason='Promotion to member')
+			await member.add_roles(member_role, ranks[-2], reason='Promotion to member')
+			print('Promoted')
+		else:
+			await member.remove_roles(member_rank, reason=f'Promotion to {ranks[rank_index-1].name}')
+			await member.add_roles(ranks[rank_index-1], reason=f'Promotion to {ranks[rank_index-1].name}')
+			print('Promoted')
+
+
+def remove(member):
+	pass
+def demote(member):
+	pass
 
 class Database:
 	con = None
@@ -267,6 +309,18 @@ class Database:
 		
 		cls.commit(query)
 		print(f'Added {member.name} to database.')
+
+	@classmethod
+	def set_join_date(cls, member: discord.Member, date: int=None):
+		if date is None:
+			date = get_days()
+		query = f"""
+		UPDATE members
+		SET join_time = {date}
+		WHERE id = {member.id}
+		"""
+		cls.commit(query)
+
 
 	@classmethod
 	def add_inactive(cls, member: discord.Member, ti1, ti2):
@@ -333,10 +387,12 @@ class Database:
 		recent_day = 0
 		total = 0
 		day1, dayx = cls.this_week()
+		print(day1, dayx)
 		for key, id, points, day in result:
-			if day1 <= get_day(day) > dayx and day is not get_days():
+			print(day, get_days())
+			recent_day = day
+			if day1 <= get_day(day) < dayx and day != today:
 				# total up all points from the week earlier
-				recent_day = get_day(day)
 				total += points
 		diff = value - total
 		if diff < 0:
@@ -347,20 +403,21 @@ class Database:
 		relative = []
 		if len(result):
 			relative = [row[1] for row in result]
-			if member.id in relative:
-				row = result[relative.index(member.id)]
-				query = f"""
-				UPDATE contributions
-				SET points = {diff}
-				WHERE day = {today}
-				"""
-				print('Updating contributions')
+			days = [row[3] for row in result]
+			print(today==recent_day, today, recent_day)
+		if member.id in relative and today == recent_day:
+			query = f"""
+			UPDATE contributions
+			SET points = {diff}
+			WHERE day = {today}
+			"""
+			print('Updating contributions')
 		else:
 			query = f"""
 			INSERT INTO
 				contributions (memberid, points, day)
 			VALUES
-				({member.id}, {value}, {today})
+				({member.id}, {diff}, {today})
 			"""
 			print('Adding contribution')
 		cls.commit(query)
@@ -387,21 +444,46 @@ class Database:
 		real = get_day(day=offset)
 		return real, get_weekly_reset()
 
-
-
 	@classmethod
 	def totals_by_period(cls, member: discord.Member, period_id):
 		sel = cls.cur.execute(f"SELECT first_day, last_day FROM periods WHERE id={period_id}").fetchone()
 		conts = cls.cur.execute(f'SELECT * FROM contributions WHERE memberid={member.id} ORDER BY day').fetchall()
 		total = 0
 		for key, id, points, day in conts:
-			if sel[0] <= day >= sel[1]:
+			if sel[0] <= day <= sel[1]:
 				total += points
 		print('Totaled', total)
 		return total
 
+	@classmethod
+	def fetch_application(cls, member: discord.Member):
+		return cls.cur.execute(f'SELECT * FROM apps WHERE member_id={member.id}').fetchone()
+
+	@classmethod
+	def new_application(cls, member: discord.Member, ign: str):
+		query = f"""
+		INSERT INTO apps
+			(member_id, ign)
+		VALUES
+			({member.id}, '{ign}')
+		"""
+		cls.commit(query)
+		app = cls.fetch_application(member)
+		return app[0] # application ID
+
+	@classmethod
+	def delete_application(cls, member: discord.Member):
+		query = f"""
+		DELETE FROM apps
+		WHERE member_id = {member.id}
+		"""
+		cls.commit(query)
 
 	#     FETCHING
+
+	@classmethod
+	def fetch_all_applications(cls):
+		return cls.cur.execute('SELECT * FROM apps').fetchall()
 
 	@classmethod
 	def fetch_contributions(cls, member: discord.Member):

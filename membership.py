@@ -2,7 +2,26 @@ import asyncio
 import discord
 import tempest
 from tempest import Database as db
-from discord.ext import commands
+from discord.ext import commands, bridge
+from discord.commands import SlashCommandGroup
+from discord import option
+
+
+class ProfileEditor(discord.ui.Modal):
+	def __init__(self, member: discord.Member, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.member = member
+		data = db.get_member(member)
+		ign = data[2] if data else None
+		self.add_item(discord.ui.InputText(label='Tower of Fantasy IGN', min_length=2, max_length=32, required=True, value = ign))
+
+	async def callback(self, interaction):
+		ign = self.children[0].value
+		if db.get_member(self.member):
+			db.update_ign(self.member, ign)
+		else:
+			db.add_member(self.member, ign=ign)
+		await interaction.response.send_message(f"{self.member.name}'s profile was updated/created.")
 
 
 class Profile(commands.Cog):
@@ -10,33 +29,40 @@ class Profile(commands.Cog):
 		self.bot = bot
 		if not db.con: db() # initialize if not already
 
-	@commands.command()
-	async def profile(self, ctx, name='', lookup='discord'):
+	profile = SlashCommandGroup('profile', 'View/edit user profile')
+
+	@profile.command(name='view', description='test')
+	@option('ign', description='Search for a profile by ToF ign.')
+	@option('user', description='Search for a profile by Discord user.')
+	async def profile_view(self, ctx, ign: str=None, user: discord.Member=None):
 		"""
 		Shows ToF name, discord mention, guild rank and activity monitoring officer.
 		"""
-		# profile functions
-		member = ctx.author # default if no arguments supplied
-		if name:
-			match lookup:
-				case 't' | 'tof':
-					data = db.get_member_by_ign(name)
-					member = ctx.guild.get_member(data[1]) # data[0] is the member's ID
-				case 'd' | 'discord':
-					member = ctx.guild.get_member_named(name)
-					data = db.get_member(member)
+		data = None
+		if ign and user:
+			return await ctx.respond(tempest.errors.DOUBLE_NAME_INPUT)
+		elif ign:
+			data = db.get_member_by_ign(ign)
+			if not data:
+				return await ctx.respond(tempest.errors.IGN_NaN)
+		elif user:
+			data = db.get_member(user)
+			if not data:
+				return await ctx.respond(tempest.errors.MEMBER_NaN)
 		else:
-			data = db.get_member(member) # default data if no arguments applied
-		# retrieve member info from database
+			data = db.get_member(ctx.author)
+			user = ctx.author
+		if not data:
+			return await ctx.respond(tempest.errors.MEMBER_NaN.value)
 		ign = data[2]
 		officer = ctx.guild.get_member(data[3])
-		role = tempest.get_rank(member)['obj']
+		role = tempest.get_rank(user)['obj']
 		# create the embed
 		embed = discord.Embed(
 			   title       = ign,
-			   description = member.mention,
+			   description = user.mention,
 			   color       = role.color)
-		embed.set_thumbnail(url=member.display_avatar.url)
+		embed.set_thumbnail(url=user.display_avatar.url)
 		embed.add_field(
 			   name  = 'Rank',
 			   value = role.name)
@@ -45,29 +71,19 @@ class Profile(commands.Cog):
 			embed.set_footer(
 				   text=officer.name,
 				   icon_url=officer.display_avatar.url)
-		await ctx.channel.send(embed=embed)
+		await ctx.respond(embed=embed)
 
-	@commands.command(aliases=['c'])
-	@commands.guild_only()
-	@tempest.access(3)
-	async def create(self, ctx, name: str, *, tof: str=None):
+	@profile.command(name='edit', description="Edit profile variables for a member.")
+	@option('user', description="Edit a discord user's profile")
+	async def profile_edit(self, ctx, user: discord.Member=None):
 		"""
 		Creates a profile for a member associating their ToF username.
 		"""
-		member = ctx.guild.get_member_named(name)
-		if tempest.has_access(member, 3):
-			print(db.get_member(member))
-		if db.get_member(member):
-			db.update_ign(member, tof)
-			message = await ctx.send(f"{member.name}'s IGN has been changed.")
-			await message.delete(delay=5)
-			await ctx.message.delete()
-			return
-		if not tof: return await ctx.reply(f"Tower of Fantasy IGN required. `mi-register <name> <ign>")
-		db.add_member(member, tof) # has_access to check if the member is a guest or not
-		message = await ctx.send(f"{member.display_name}'s profile has been created!")
-		await message.delete(delay=5)
-		await ctx.message.delete()
+		member = user if user else ctx.author
+		editor = ProfileEditor(title=f"{member.name}'s settings", member=member)
+		await ctx.send_modal(editor)
+
+
 	@commands.command()
 	@commands.guild_only()
 	@tempest.access(2)
@@ -114,28 +130,24 @@ class Profile(commands.Cog):
 		await ctx.message.delete(delay=10)
 		await reply.delete(delay=10)
 
-		@register.error
-		async def on_command_error(ctx: discord.Context, error: commands.CommandError):
-			if isinstance(error, commands.MissingRequiredArgument):
-				reply = await ctx.send('Please type your TOF username.  Case sensitive.')
-				await reply.delete(delay=10)
-				await ctx.message.delete(delay=10)
-			else:
-				raise error
 
 class ApplicationControls(discord.ui.View):
-	def __init__(self, member_id, tof_ign, *args, **kwargs):
+	def __init__(self, member_id, *args, **kwargs):
 		super().__init__(timeout=None, *args, **kwargs)
-		self.member_id = member_id
-		self.tof_ign = tof_ign
-	@discord.ui.button(label='Accept', style=discord.ButtonStyle.success)
+		data = db.fetch_application(tempest.server.get_member(member_id))
+		self.member_id = data[1]
+		self.ign = data[2]
+		print('View created', self.ign, self.member_id)
+
+	@discord.ui.button(label='Accept', custom_id='accept-1', style=discord.ButtonStyle.success)
 	async def button_callback(self, button, interaction):
 		if interaction.message:
 			await interaction.message.delete()
-		app_channel = tempest.server.get_channel(1016090752222232650)
 		member = tempest.server.get_member(self.member_id)
-		await app_channel.send(f"✅ {member.mention}'s (**{self.tof_ign}**) application was accepted")
-
+		db.delete_application(member)
+		db.set_join_date(member)
+		await tempest.promote(member)
+		await tempest.apps.send(f"✅ {member.mention}'s (**{self.ign}**) application was accepted")
 
 class Application(discord.ui.Modal):
 	def __init__(self, *args, **kwags) -> None:
@@ -150,14 +162,21 @@ class Application(discord.ui.Modal):
 		level = self.children[1].value
 		note = self.children[2].value
 		member = interaction.user
+		try:
+			db.new_application(member, ign)
+		except Exception as e:
+			return await interaction.response.send_message(e)
+		if db.get_member(member):
+			db.update_ign(member, ign)
+		else:
+			db.add_member(member, ign)
 		embed = discord.Embed(title=f"{ign}'s application", description=member.mention)
 		embed.add_field(name='Level', value=level)
 		if note:
 			embed.add_field(name='Note', value=note)
 		embed.set_thumbnail(url=member.display_avatar.url)
-
-		app_channel = tempest.server.get_channel(1016090752222232650)
-		await app_channel.send(embed=embed, view=ApplicationControls(member_id=member.id, tof_ign=ign))
+		view = ApplicationControls(member.id)
+		await tempest.apps.send(embed=embed, view=view)
 		body = """
 		Thank you for applying to join Tempest.  Unfortunately **Tempest is __full__**.  We transfer active, high-contribution, talkative members from **Aurora**.
 		**You will need to apply to Aurora**, our second crew, in-game.
@@ -172,7 +191,21 @@ class Membership(commands.Cog):
 	@commands.slash_command()
 	async def apply(self, ctx: discord.ApplicationContext):
 		app = Application(title='Test Application')
-		await ctx.send_modal(app)
+		app_fetch = db.fetch_application(ctx.author)
+		if app_fetch:
+			await ctx.respond('Your application is currently being processed.', ephemeral=True)
+		elif tempest.has_access(ctx.author, 4):
+			await ctx.respond('You\'re already a member!', ephemeral=True)
+		else:
+			await ctx.send_modal(app)
+		pass
+
+	@commands.Cog.listener()
+	async def on_ready(self):
+		print('persisting views')
+		data = db.fetch_all_applications()
+		for app_id, member_id, ign in data:
+			self.bot.add_view(ApplicationControls(member_id))
 
 
 

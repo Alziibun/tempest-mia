@@ -7,6 +7,7 @@ from tempest import Database as db
 from datetime import timedelta
 from discord.commands import SlashCommandGroup
 from discord.ext import tasks, commands
+from discord import option
 
 current_period = None
 
@@ -19,6 +20,8 @@ class Activity(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.main.start()
+
+
 
 	@commands.command(aliases=['ireg'])
 	@tempest.access(3)
@@ -97,7 +100,9 @@ class Activity(commands.Cog):
 
 	activity = SlashCommandGroup('activity', 'Manage member activity', checks=[tempest.access(3).predicate])
 
-	@activity.command()
+	@activity.command(description="Edit a member's contribution record")
+	@option('ign', description='**CASE SENSITIVE!** Search for the member by their IGN.')
+	@option('points', description="Provide the member's **CURRENT** weekly contribution score.  Mi-a will do the rest for you")
 	async def edit(self, ctx, ign: str, points: int):
 		data = db.get_member_by_ign(ign)
 		if not data:
@@ -107,8 +112,10 @@ class Activity(commands.Cog):
 			db.set_contribution(member, points)
 			await ctx.respond(f"{ign}'s contributions have been recorded.", ephemeral=True)
 
-	@activity.command()
-	async def view(self, ctx, ign: str=None, user: discord.Member=None):
+	@activity.command(description="View a members activity record")
+	@option('user', description='Search the activity of a member by their Discord.')
+	@option('ign', description='CASE SENSITIVE!  Search by TOF username.')
+	async def view(self, ctx, user:discord.Member=None, ign: str=None):
 		if ign and user:
 			return await ctx.respond('Use either TOF ign or Discord name.  Not both.', ephemeral=True)
 		elif ign:
@@ -128,11 +135,15 @@ class Activity(commands.Cog):
 		last_day = current_period[2]
 		embed = discord.Embed(title=f"{data[2]}'s activity", description=member.mention)
 		conts = db.fetch_contributions(member)
+		print(conts)
 		values = list()
+		print(first_day, last_day)
 		for k, id, points, day in conts:
-			if first_day <= day >= last_day:
+			print(k, id, points, day)
+			if first_day <= day <= last_day:
 				values.append(f"[`DAY {day}`] points: `{points}`")
 		embed.add_field(name=f'Contributions (Day {first_day} - {last_day})', value='\n'.join(values))
+		print(current_period)
 		embed.add_field(name="Total Contribution (this period)", value=db.totals_by_period(member, current_period[0]), inline=False)
 		await ctx.respond(embed=embed)
 
@@ -161,10 +172,11 @@ class Activity(commands.Cog):
 		today = tempest.get_days()
 		start = data[1]
 		end   = data[2]
-		if start <= today >= end:
+		print(start, today, end)
+		if start <= today <= end:
 			return True # the period is still valid
 		else:
-			next = tempest.get_day(today + tempest.active_period - 1).days # today is included in the time period, subtract day by 1
+			next = today + tempest.active_period - 1 # today is included in the time period, subtract day by 1
 			db.new_period(today, next)
 			return False # a new period was started
 
@@ -176,10 +188,51 @@ class Activity(commands.Cog):
 		print('Waiting until the next hour')
 		await asyncio.sleep( diff.total_seconds() )
 
+	async def activity_checks(self):
+		all_members = db.cur.execute('SELECT memberid FROM members ORDER BY key').fetchall()
+		if len(all_members):
+			for id in all_members:
+				await asyncio.sleep(1)
+				member = tempest.server.get_member(id)
+				total = db.totals_by_period(member, current_period[0])
+				if total < tempest.min_contribution:
+					yield member, total
+
+	async def period_report(self):
+		period_settings = current_period
+		start = tempest.get_day(period_settings[1])
+		end   = tempest.get_day(period_settings[2])
+		member_list = []
+		ign_list = []
+		totals = []
+		for member, total in self.activity_checks():
+			data = db.get_member(member)
+			member_list.append(member.mention)
+			totals.append(total)
+			ign_list.append(data[2])
+
+		if len(member_list):
+			embed = discord.Embed(
+				title='Active-Period Report',
+				description=f'*Below are a list of members who did not make the activity requirements this period.*\nStart: <t:{int(start.timestamp())}:D>\nEnd: <t:{int(end.timestamp())}:D>')
+			embed.add_field(name='Discord', value='\n'.join(member_list))
+			embed.add_field(name='ToF name', value='\n'.join(ign_list))
+			embed.add_field(name='Contribution', value='\n'.join(totals))
+			await tempest.officer.send(embed=embed)
+
+	@activity.command()
+	@tempest.access(3)
+	async def report(self, ctx):
+		await self.period_report()
+
+
+
+
 	@tasks.loop(hours=1.0)
 	async def main(self):
 		print('| [PERIOD] validating period')
-		validate_period()
+		if not await self.validate_period():
+			await tempest.botdev.send('A new activity period has begun.')
 		global current_period
 		current_period = db.fetch_current_period()
 		if await self.almost_reset():
