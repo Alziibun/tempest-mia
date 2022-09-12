@@ -21,13 +21,20 @@ class ProfileEditor(discord.ui.Modal):
 			db.update_ign(self.member, ign)
 		else:
 			db.add_member(self.member, ign=ign)
-		await interaction.response.send_message(f"{self.member.name}'s profile was updated/created.")
+		await interaction.response.send_message(f"`{self.member.display_name}`'s profile was updated/created.")
 
 
 class Profile(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		if not db.con: db() # initialize if not already
+
+	@commands.user_command(name='Edit Profile')
+	@tempest.access(3)
+	async def edit_profile(self, ctx, member: discord.Member):
+		editor = ProfileEditor(title=f"{member.name}'s settings", member=member)
+		await ctx.send_modal(editor)
+
 
 	profile = SlashCommandGroup('profile', 'View/edit user profile')
 
@@ -53,7 +60,7 @@ class Profile(commands.Cog):
 			data = db.get_member(ctx.author)
 			user = ctx.author
 		if not data:
-			return await ctx.respond(tempest.errors.MEMBER_NaN.value)
+			return await ctx.respond(tempest.errors.MEMBER_NaN)
 		ign = data[2]
 		officer = ctx.guild.get_member(data[3])
 		role = tempest.get_rank(user)['obj']
@@ -145,7 +152,6 @@ class ApplicationControls(discord.ui.View):
 			await interaction.message.delete()
 		member = tempest.server.get_member(self.member_id)
 		db.delete_application(member)
-		db.set_join_date(member)
 		await tempest.promote(member)
 		await tempest.apps.send(f"✅ {member.mention}'s (**{self.ign}**) application was accepted")
 
@@ -162,8 +168,9 @@ class Application(discord.ui.Modal):
 		level = self.children[1].value
 		note = self.children[2].value
 		member = interaction.user
+
 		try:
-			db.new_application(member, ign)
+			app_id = db.new_application(member, ign)
 		except Exception as e:
 			return await interaction.response.send_message(e)
 		if db.get_member(member):
@@ -176,7 +183,9 @@ class Application(discord.ui.Modal):
 			embed.add_field(name='Note', value=note)
 		embed.set_thumbnail(url=member.display_avatar.url)
 		view = ApplicationControls(member.id)
-		await tempest.apps.send(embed=embed, view=view)
+		message = await tempest.apps.send(embed=embed, view=view)
+		db.set_app_message(app_id, message)
+
 		body = """
 		Thank you for applying to join Tempest.  Unfortunately **Tempest is __full__**.  We transfer active, high-contribution, talkative members from **Aurora**.
 		**You will need to apply to Aurora**, our second crew, in-game.
@@ -200,12 +209,35 @@ class Membership(commands.Cog):
 			await ctx.send_modal(app)
 		pass
 
+	async def promote_embed(self, author, member: discord.Member):
+		embed = discord.Embed(description=f"{member.mention} was **promoted** to {tempest.get_rank(member)['obj'].mention}", color=discord.Colour.brand_green())
+		embed.set_footer(text=author.display_name, icon_url=author.display_avatar)
+		return embed
+
+	async def demote_embed(self, ctx, author, member: discord.Member):
+		embed = discord.Embed(title='🔽 Demotion', description=f"{member.mention} was demoted to **{tempest.get_rank(member)['obj']}**", color=discord.Colour.brand_red())
+		embed.set_author(name=author.display_name, icon_url=author.display_avatar.url)
+		return embed
+
+	@commands.user_command(name="Promote")
+	@tempest.access(2)
+	async def promote_member(self, ctx, member: discord.Member):
+		embed = await self.promote_embed(ctx.author, member)
+		try:
+			await tempest.promote(member)
+			await tempest.mem_log.send(embed=embed)
+		except Exception as e:
+			return print(e)
+		await ctx.respond(f"{member.display_name} was promoted.", ephemeral=True)
+		del embed
+
 	@commands.Cog.listener()
 	async def on_ready(self):
 		print('persisting views')
 		data = db.fetch_all_applications()
-		for app_id, member_id, ign in data:
+		for app_id, member_id, ign, message_id in data:
 			self.bot.add_view(ApplicationControls(member_id))
+
 
 
 

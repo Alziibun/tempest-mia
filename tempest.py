@@ -74,7 +74,7 @@ level_caps = [
 	(101, 80)
 ]
 
-tof_epoch = dt.datetime(2022, 8, 10, hour=20)
+tof_epoch = dt.datetime(2022, 8, 10, hour=5)
 tof_week_epoch = dt.datetime(2022, 8, 15, hour=5)
 schedule = [
 	("Monday", "**Void Rift** day 1"),
@@ -121,7 +121,7 @@ async def wait_until_ready():
 	while server is None:
 		await asyncio.sleep(1)
 
-class errors(Enum):
+class errors:
 	DOUBLE_NAME_INPUT = "Please use either IGN or user, not both!"
 	IGN_NaN = "Couldn't find someone by that name!\n> *ToF IGNs are case-sensitive.*"
 	MEMBER_NaN = "This user is not in the database."
@@ -148,7 +148,6 @@ class InsufficientAccessLevel(commands.CheckFailure):
 def access(level=255):
 	# checks version of has_access()
 	async def predicate(ctx):
-		rank = get_rank(ctx.author)
 		ranks = []
 		for role in roles.values():
 			if role['av'] <= level:
@@ -174,9 +173,10 @@ def get_days():
 	since_epoch = now - tof_epoch
 	days = since_epoch.days
 	reset = get_daily_reset()
+	print(now.hour, days, reset.day, now.day is reset.day)
 	if now.hour < 5 and now.day is reset.day:
 		days -= 1
-	return days + 2 # +1 prevents day 0 from existing
+	return days + 1 # +1 prevents day 0 from existing
 
 def get_day(day=1):
 	# get the day of the server as a timedelta
@@ -263,17 +263,20 @@ async def promote(member):
 		if visitor_role in member.roles:
 			await member.remove_roles(visitor_role, reason='Promotion to member')
 			await member.add_roles(member_role, ranks[-2], reason='Promotion to member')
+			Database.set_join_date(member, get_days())
 			print('Promoted')
 		else:
 			await member.remove_roles(member_rank, reason=f'Promotion to {ranks[rank_index-1].name}')
 			await member.add_roles(ranks[rank_index-1], reason=f'Promotion to {ranks[rank_index-1].name}')
 			print('Promoted')
 
+async def demote(member):
+	rank = get_rank(member)['obj']
+	if mem_role in member.roles:
+		await member.remove_roles(rank, mem_role, reason='Demotion to visitor')
+		await member.add_roles(visitor_role, reason='Demotion to visitor')
+		print('Reduced to visitor.')
 
-def remove(member):
-	pass
-def demote(member):
-	pass
 
 class Database:
 	con = None
@@ -403,7 +406,6 @@ class Database:
 		relative = []
 		if len(result):
 			relative = [row[1] for row in result]
-			days = [row[3] for row in result]
 			print(today==recent_day, today, recent_day)
 		if member.id in relative and today == recent_day:
 			query = f"""
@@ -470,6 +472,15 @@ class Database:
 		cls.commit(query)
 		app = cls.fetch_application(member)
 		return app[0] # application ID
+
+	@classmethod
+	def set_app_message(cls, app_id, message: discord.Message):
+		query = f"""
+		UPDATE apps
+		SET message_id = {message.id}
+		WHERE app_id = {app_id}
+		"""
+		cls.commit(query)
 
 	@classmethod
 	def delete_application(cls, member: discord.Member):
