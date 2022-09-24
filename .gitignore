@@ -5,4 +5,6 @@ __pycache__/*
 *.sqlite3
 videos/en_coco.mp4
 accolades.yml
-
+.idea/*
+img/*
+drivers/*
