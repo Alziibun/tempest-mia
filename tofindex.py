@@ -185,15 +185,14 @@ class Info(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def autocomplete_simulacra(self, ctx: discord.AutocompleteContext):
-        print('huh')
+    @staticmethod
+    def autocomplete_simulacra(ctx: discord.AutocompleteContext):
         return [sim for sim in simulacra if ctx.value.lower() in sim.lower()]
 
-    sim = SlashCommandGroup('simulacra', 'Information about ToF Simulacra')
-
-    @sim.command(name='advancement')
-    @option(name='name', description='Search for a Simulacra\'s information from tofindex site', autocomplete=autocomplete_simulacra)
-    async def advancement(self, ctx,  name: str):
+    sim = SlashCommandGroup('simulacra')
+    @sim.command()
+    @option(name='name', description='Search for a Simulacra\'s advancements from tofindex site', autocomplete=autocomplete_simulacra)
+    async def advancements(self, ctx,  name: str):
         embed, files = advancement_embed(name)
         await ctx.respond(files=files, embed=embed, ephemeral=False)
 
