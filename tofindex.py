@@ -5,11 +5,15 @@ import tempfile
 import chromedriver_autoinstaller
 import tempest
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from PIL import Image
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
 from discord import option
+
 
 chromedriver_autoinstaller.install()
 tofindex = 'https://toweroffantasy.info'
@@ -32,15 +36,10 @@ resonances = dict(
 )
 
 class Simulacra:
-    def __init__(self, character_name: str):
+    def __init__(self, character_name: str, source_page):
         if character_name in simulacra.keys():
             return
-        self._url = f"https://toweroffantasy.info/simulacra/{character_name.replace(' ', '-').lower()}"
-        print(self._url)
-        driver = webdriver.Chrome()
-        driver.get(self._url)
-        self._html = driver.page_source
-        self._soup = BeautifulSoup(self._html, 'html.parser')
+        self._soup = BeautifulSoup(source_page, 'html.parser')
         self._name = character_name
         self._weapon = Weapon(self._soup)
         print('Initialized', character_name)
@@ -106,6 +105,22 @@ class Simulacra:
         for li in menu.find_all('li'):
             characters.append(li.h3.string)
         return characters
+
+    @classmethod
+    async def setup(cls):
+        with webdriver.Chrome() as driver:
+            driver.get("https://toweroffantasy.info/simulacra")
+            wait = WebDriverWait(driver, 10)
+            root = driver.current_window_handle
+            assert len(driver.window_handles) == 1
+            for name in cls.all_characters:
+                driver.switch_to.new_window('tab')
+                driver.get(f"https://toweroffantasy.info/simulacra/{name.replace(' ','-')}")
+                wait.until(EC.title_is(f"{name} | Tower of Fantasy Index"))
+                simulacra[name] = Simulacra(name, driver.page_source)
+
+
+
 
 class Weapon:
     def __init__(self, soup: BeautifulSoup):
@@ -184,8 +199,8 @@ class Info(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        for name in Simulacra.all_characters:
-            simulacra[name] = Simulacra(name)
+        await Simulacra.setup()
+
 
 def setup(bot):
     #simulacra['Frigg'] = Simulacra('Frigg')
