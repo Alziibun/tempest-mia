@@ -73,8 +73,7 @@ class Activity(commands.Cog):
 		for row in data:
 			member = ctx.guild.get_member(row[1])
 			if member:
-				aurora = tempest.roles['aurora']['obj']
-				if tempest.member_role in member.roles and aurora not in member.roles:
+				if tempest.has_access(member, 4):
 					li_ign.append(row[2] if row[2] is not None else 'UNKNOWN')
 					li_disc.append(member.mention)
 					try:
@@ -251,7 +250,7 @@ class Activity(commands.Cog):
 	async def main(self):
 		print('| [PERIOD] validating period')
 		if not await self.validate_period():
-			await tempest.botdev.send('A new activity period has begun.')
+			await tempest.officer.send('A new activity period has begun.')
 		global current_period
 		current_period = db.fetch_current_period()
 		if await self.almost_reset():
