@@ -31,7 +31,7 @@ class Profile(commands.Cog):
 
 	@commands.user_command(name='Edit Profile')
 	@tempest.access(3)
-	async def edit_profile(self, ctx, member: discord.Member):
+	async def profile_user_edit(self, ctx, member: discord.Member):
 		editor = ProfileEditor(title=f"{member.name}'s settings", member=member)
 		await ctx.send_modal(editor)
 
@@ -86,21 +86,27 @@ class Profile(commands.Cog):
 		"""
 		Creates a profile for a member associating their ToF username.
 		"""
+
 		member = user if user else ctx.author
-		editor = ProfileEditor(title=f"{member.name}'s settings", member=member)
-		await ctx.send_modal(editor)
+		if member is ctx.author or tempest.has_access(ctx.author, 3):
+			editor = ProfileEditor(title=f"{member.name}'s settings", member=member)
+			await ctx.send_modal(editor)
+		else:
+			ctx.respond('You may only edit your own profile.', ephemeral=True)
 
 
-	@commands.command()
-	@commands.guild_only()
+	@commands.slash_command(description='Assign an officer to a member.')
 	@tempest.access(2)
-	async def assign(self, ctx, officer: str, *, name: str):
-		officer = ctx.guild.get_member_named(officer)
+	@option('officer', description='The officer to be assigned.')
+	@option('name', description='The IGN of the member.')
+	async def assign(self, ctx, officer: discord.Member, *, name: str):
 		member = ctx.guild.get_member(db.get_member_by_ign(name)[0])
-
-		if member and officer:
+		if member:
 			db.update_officer(member, officer)
 			await tempest.officer.send(f"> {member.mention} was assigned to {officer.display_name}.")
+		else:
+			await ctx.respond('Unable to find a member by that IGN.  It\'s possible they have not been registered on the database.', ephemeral=True)
+
 
 	@commands.command(aliases=['delassign', 'da', 'una'])
 	@commands.guild_only()
@@ -152,7 +158,8 @@ class ApplicationControls(discord.ui.View):
 			await interaction.message.delete()
 		member = tempest.server.get_member(self.member_id)
 		db.delete_application(member)
-		await tempest.promote(member)
+		await tempest.promote(interaction.author, member)
+		print(f"MEMBERSHIP: {member.display_name}'s application was accepted by {interaction.user.display_name}")
 		await tempest.apps.send(f"✅ {member.mention}'s (**{self.ign}**) application was accepted")
 
 class Application(discord.ui.Modal):
@@ -187,8 +194,7 @@ class Application(discord.ui.Modal):
 		db.set_app_message(app_id, message)
 
 		body = """
-		Thank you for applying to join Tempest.  Unfortunately **Tempest is __full__**.  We transfer active, high-contribution, talkative members from **Aurora**.
-		**You will need to apply to Aurora**, our second crew, in-game.
+		Thank you for applying to join Tempest.  Please make sure to apply to Tempest in-game!
 		"""
 		await interaction.response.send_message(body, ephemeral=True)
 
@@ -209,37 +215,34 @@ class Membership(commands.Cog):
 			await ctx.send_modal(app)
 		pass
 
-	async def promote_embed(self, author, member: discord.Member):
-		embed = discord.Embed(description=f"{member.mention} was **promoted** to {tempest.get_rank(member)['obj'].mention}", color=discord.Colour.brand_green())
-		embed.set_footer(text=author.display_name, icon_url=author.display_avatar)
-		return embed
-
-	async def demote_embed(self, ctx, author, member: discord.Member):
-		embed = discord.Embed(title='🔽 Demotion', description=f"{member.mention} was demoted to **{tempest.get_rank(member)['obj']}**", color=discord.Colour.brand_red())
-		embed.set_author(name=author.display_name, icon_url=author.display_avatar.url)
-		return embed
-
 	@commands.user_command(name="Promote")
 	@tempest.access(2)
 	async def promote_member(self, ctx, member: discord.Member):
-		embed = await self.promote_embed(ctx.author, member)
 		try:
-			await tempest.promote(member)
-			await tempest.mem_log.send(embed=embed)
+			await tempest.promote(ctx.author, member)
 		except Exception as e:
 			return print(e)
 		await ctx.respond(f"{member.display_name} was promoted.", ephemeral=True)
-		del embed
+
+	@commands.user_command(name='Demote to Visitor')
+	@tempest.access(2)
+	async def demote_to_visitor(self, ctx, member: discord.Member):
+		try:
+			await tempest.demote(ctx.author, member)
+		except Exception as e:
+			return print(e)
+		await ctx.respond(f"{member.display_name} was reduced to visitor.", ephemeral=True)
+
 
 	@commands.Cog.listener()
 	async def on_ready(self):
 		print('persisting views')
 		data = db.fetch_all_applications()
 		for app_id, member_id, ign, message_id in data:
-			self.bot.add_view(ApplicationControls(member_id))
-
-
-
+			try:
+				self.bot.add_view(ApplicationControls(member_id), message_id=message_id)
+			except AttributeError:
+				print('Could not find member', ign)
 
 class Awards(commands.Cog):
 	pass

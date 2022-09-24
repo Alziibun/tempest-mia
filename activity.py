@@ -3,6 +3,7 @@ import math
 import datetime as time
 import tempest
 import asyncio
+import random
 from tempest import Database as db
 from datetime import timedelta
 from discord.commands import SlashCommandGroup
@@ -20,8 +21,6 @@ class Activity(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.main.start()
-
-
 
 	@commands.command(aliases=['ireg'])
 	@tempest.access(3)
@@ -62,59 +61,64 @@ class Activity(commands.Cog):
 		"""
 		Displays all members handled by the officer.
 		"""
-		member = ctx.author
+		officer = ctx.author
 		if name:
-			member = ctx.guild.get_member_named(name)
-		print(member)
-		data = db.fetch_members_by_officer(member)
+			officer = ctx.guild.get_member_named(name)
+		data = db.fetch_members_by_officer(officer)
 		if not data:
 			await ctx.reply('Unable to locate officer ID in the database.')
 		li_ign = []
 		li_disc = []
+		li_cont = []
 		for row in data:
-			try:
-				li_ign.append(row[1])
-			except Exception as e:
-				print(e)
-				li_ign.append('ERROR')
+			member = ctx.guild.get_member(row[1])
+			if member:
+				aurora = tempest.roles['aurora']['obj']
+				if tempest.member_role in member.roles and aurora not in member.roles:
+					li_ign.append(row[2] if row[2] is not None else 'UNKNOWN')
+					li_disc.append(member.mention)
+					try:
+						li_cont.append(f"`{db.totals_by_period(member, current_period[0])}`")
+					except:
+						li_cont.append('`0`')
+			else:
+				pass #li_disc.append('ERROR')
 
-		for row in data:
-			try:
-				li_disc.append(ctx.guild.get_member(row[0]).mention)
-			except Exception as e:
-				print(e)
-				li_disc.append('ERROR')
-		embed = discord.Embed(
-			title = f"{member.name}'s assignments"
-		)
-		embed.set_thumbnail(url=member.display_avatar.url)
-		embed.add_field(
-			name = "Discord",
-			value = '\n'.join(li_disc)
-		)
+		print(li_ign)
+		embed = discord.Embed()
+		embed.set_author(name=f"{officer.name}'s assignments", icon_url=officer.display_avatar.url)
 		embed.add_field(
 			name = "Tower of Fantasy",
 			value = '\n'.join(li_ign)
+		)
+		embed.add_field(
+			name = 'Contributions',
+			value = '\n'.join(li_cont)
+		)
+		embed.add_field(
+			name="Discord",
+			value='\n'.join(li_disc)
 		)
 		await ctx.send(embed=embed)
 
 	activity = SlashCommandGroup('activity', 'Manage member activity', checks=[tempest.access(3).predicate])
 
 	@activity.command(description="Edit a member's contribution record")
-	@option('ign', description='**CASE SENSITIVE!** Search for the member by their IGN.')
+	@option('ign', description='**CASE SENSITIVE!** Search for the member by their IGN.', autocomplete=db.autocomplete_ign)
 	@option('points', description="Provide the member's **CURRENT** weekly contribution score.  Mi-a will do the rest for you")
 	async def edit(self, ctx, ign: str, points: int):
 		data = db.get_member_by_ign(ign)
 		if not data:
 			await ctx.respond(f"Unable to find member by the name of `{ign}`.  They may not exist in the database.\n> Hint: Tower of Fantasy IGNs are case-sensitive.", ephemeral=True)
 		else:
+			print('ACTIVITY EDI1T:', ctx.author.display_name, 'adding contribution to', ign, ':', points)
 			member = tempest.server.get_member(data[1])
 			db.set_contribution(member, points)
 			await ctx.respond(f"{ign}'s contributions have been recorded.", ephemeral=True)
 
 	@activity.command(description="View a members activity record")
 	@option('user', description='Search the activity of a member by their Discord.')
-	@option('ign', description='CASE SENSITIVE!  Search by TOF username.')
+	@option('ign', description='CASE SENSITIVE!  Search by TOF username.', autocomplete=db.autocomplete_ign)
 	async def view(self, ctx, user:discord.Member=None, ign: str=None):
 		if ign and user:
 			return await ctx.respond('Use either TOF ign or Discord name.  Not both.', ephemeral=True)
@@ -147,12 +151,29 @@ class Activity(commands.Cog):
 		embed.add_field(name="Total Contribution (this period)", value=db.totals_by_period(member, current_period[0]), inline=False)
 		await ctx.respond(embed=embed)
 
-
-
-
-
-
-
+	@commands.slash_command(description='Randomize all officer assignments.')
+	@tempest.access(2)
+	async def jumble(self, ctx):
+		officer_role = tempest.server.get_role(942230609756061777)
+		aurora = tempest.server.get_role(1008641018826067968)
+		officers = [officer for officer in officer_role.members]
+		members = [member for member in tempest.server.members if aurora not in member.roles and tempest.member_role in member.roles and not tempest.has_access(member, 3)]
+		division  = len(members) // len(officers)
+		remainder = len(members) % len(officers)
+		random.shuffle(members)
+		index = 0
+		officer_dict = dict()
+		print('member count', len(members))
+		while index < len(officers):
+			for i in range(division):
+				member = members.pop()
+				print(member.name)
+				db.update_officer(member, officers[index])
+			index += 1
+		else:
+			if remainder > 0:
+				print(remainder)
+		await ctx.respond('jumpled officersssss')
 
 
 	async def almost_reset(self):
@@ -224,8 +245,6 @@ class Activity(commands.Cog):
 	@tempest.access(3)
 	async def report(self, ctx):
 		await self.period_report()
-
-
 
 
 	@tasks.loop(hours=1.0)

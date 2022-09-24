@@ -21,6 +21,7 @@ notes   = 1008223604170825788
 botdev  = 1008346539879563314
 apps    = 1017353554693992448
 mem_log = 1017566996604391424
+party   = 1020066847082684478
 
 member_role = 1008632049558634496
 visitor_role = 942230609739251734
@@ -77,13 +78,13 @@ level_caps = [
 tof_epoch = dt.datetime(2022, 8, 10, hour=5)
 tof_week_epoch = dt.datetime(2022, 8, 15, hour=5)
 schedule = [
-	("Monday", "**Void Rift** day 1"),
-	("Tuesday", "**Frontier Clash** day 1"),
-	("Wednesday", "**Void Rift** day 2"),
-	("Thursday", "**Frontier day** 2"),
-	("Friday", "**Void Rift** day 3"),
-	("Saturday", "**Frontier Clash** day 3"),
-	("Sunday", "*Nothing new today!  Time to relax~*")
+	("Monday", "Void Rift"),
+	("Tuesday", "Frontier Clash"),
+	("Wednesday", "Void Rift"),
+	("Thursday", "Frontier Clash"),
+	("Friday", "Void Rift"),
+	("Saturday", "Frontier Clash"),
+	("Sunday", "Nothing")
 ]
 kitchen = [
 	( 5, 'Breakfast'),
@@ -92,7 +93,7 @@ kitchen = [
 ]
 def init(guild: discord.Guild):
 	print(f'Initiating {guild.name} as Tempest server.')
-	global server, roles, officer, admin, council, notes, botdev, TANK, HEALER, DPS, apps, mem_log
+	global server, roles, officer, admin, council, notes, botdev, TANK, HEALER, DPS, apps, mem_log, party
 	server = guild
 	officer = server.get_channel(officer)
 	admin = server.get_channel(admin)
@@ -101,6 +102,7 @@ def init(guild: discord.Guild):
 	botdev = server.get_channel(botdev)
 	apps = server.get_channel(apps)
 	mem_log = server.get_channel(mem_log)
+	party = server.get_channel(party)
 	global member_role, visitor_role
 	member_role = server.get_role(member_role)
 	visitor_role = server.get_role(visitor_role)
@@ -140,7 +142,10 @@ def get_rank(member: discord.Member):
 
 def has_access(member: discord.Member, req):
 	# check if the member has the required av for the command
-	return True if get_rank(member)['av'] <= req else False
+	try:
+		return True if get_rank(member)['av'] <= req else False
+	except:
+		return False
 
 class InsufficientAccessLevel(commands.CheckFailure):
 	pass
@@ -172,10 +177,6 @@ def get_days():
 	now = dt.datetime.now()
 	since_epoch = now - tof_epoch
 	days = since_epoch.days
-	reset = get_daily_reset()
-	print(now.hour, days, reset.day, now.day is reset.day)
-	if now.hour < 5 and now.day is reset.day:
-		days -= 1
 	return days + 1 # +1 prevents day 0 from existing
 
 def get_day(day=1):
@@ -195,7 +196,10 @@ def get_daily_reset():
 
 def get_weekly_reset():
 	today = dt.datetime.now()
-	diff = 7 -  today.weekday()
+	if today.weekday() > 0:
+		diff = 7 - today.weekday()
+	elif today.hour < 5:
+		diff = 0
 	reset = today.replace(hour=5, minute=0, second=0, microsecond=0) + dt.timedelta(days = diff)
 	return reset
 
@@ -208,7 +212,7 @@ def get_next_cap():
 	print('Today is', today)
 	while today < level_caps[-1][0]:
 		next_cap = next(caplist)
-		print(last_cap[0], next_cap[0]-1)
+		# print(last_cap[0], next_cap[0]-1)
 		if today in [day for day in range(last_cap[0], next_cap[0])]:
 			cap = next_cap
 			current = last_cap
@@ -255,27 +259,36 @@ def parse_name(name):
 		raise TypeError(t)
 	return member, data
 
-async def promote(member):
+async def promote(promoter, member):
 	ranks = [role['obj'] for name, role in roles.items()]
 	member_rank = get_rank(member)['obj']
 	rank_index = ranks.index(member_rank)
 	if rank_index > 1:
 		if visitor_role in member.roles:
+			role = ranks[-2]
 			await member.remove_roles(visitor_role, reason='Promotion to member')
-			await member.add_roles(member_role, ranks[-2], reason='Promotion to member')
+			await member.add_roles(member_role, role, reason='Promotion to member')
 			Database.set_join_date(member, get_days())
 			print('Promoted')
 		else:
-			await member.remove_roles(member_rank, reason=f'Promotion to {ranks[rank_index-1].name}')
-			await member.add_roles(ranks[rank_index-1], reason=f'Promotion to {ranks[rank_index-1].name}')
+			role = ranks[rank_index-1]
+			await member.remove_roles(member_rank, reason=f'Promotion to {role.name}')
+			await member.add_roles(role, reason=f'Promotion to {role.name}')
 			print('Promoted')
-
-async def demote(member):
+		embed = discord.Embed(
+			description=f"{member.mention} was **promoted** to {role.mention}",
+			color=discord.Colour.brand_green())
+		embed.set_footer(text=promoter.display_name, icon_url=promoter.display_avatar)
+		await mem_log.send(embed=embed)
+async def demote(demoter: discord.Member, member: discord.Member):
 	rank = get_rank(member)['obj']
-	if mem_role in member.roles:
-		await member.remove_roles(rank, mem_role, reason='Demotion to visitor')
+	if member_role in member.roles:
+		await member.remove_roles(rank, member_role, reason='Demotion to visitor')
 		await member.add_roles(visitor_role, reason='Demotion to visitor')
 		print('Reduced to visitor.')
+		embed = discord.Embed(title='🔽 Demotion', description=f"{member.mention} was demoted to **{visitor_role.mention}**", color=discord.Colour.brand_red())
+		embed.set_author(name=demoter.display_name, icon_url=demoter.display_avatar.url)
+		await mem_log.send(embed=embed)
 
 
 class Database:
@@ -287,7 +300,7 @@ class Database:
 			cls.con = sqlite3.connect("database.sqlite3")
 			cls.cur = cls.con.cursor()
 			print('Connected to database.')
-		except Error as e:
+		except Exception as e:
 			print(f'Unable to connect to database. {e}')
 		# END OF INITIALIZATION
 
@@ -390,11 +403,11 @@ class Database:
 		recent_day = 0
 		total = 0
 		day1, dayx = cls.this_week()
-		print(day1, dayx)
+		print('This week is', day1, dayx)
 		for key, id, points, day in result:
-			print(day, get_days())
 			recent_day = day
-			if day1 <= get_day(day) < dayx and day != today:
+			if day1 <= get_day(day) <= dayx and day != today:
+				print('Adding', points, 'to total. DAY', day)
 				# total up all points from the week earlier
 				total += points
 		diff = value - total
@@ -406,7 +419,7 @@ class Database:
 		relative = []
 		if len(result):
 			relative = [row[1] for row in result]
-			print(today==recent_day, today, recent_day)
+			#print(today==recent_day, today, recent_day)
 		if member.id in relative and today == recent_day:
 			query = f"""
 			UPDATE contributions
@@ -491,6 +504,12 @@ class Database:
 		cls.commit(query)
 
 	#     FETCHING
+
+	@classmethod
+	def autocomplete_ign(cls, ctx: discord.AutocompleteContext):
+		data = cls.cur.execute('SELECT ign FROM members').fetchall()
+		return [name[0] for name in data if name[0] is not None and ctx.value.lower() in name[0].lower()]
+
 
 	@classmethod
 	def fetch_all_applications(cls):

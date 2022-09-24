@@ -57,7 +57,7 @@ class Developer(commands.Cog):
 
 	@commands.slash_command()
 	async def promote(self, ctx, user: discord.Member):
-		tempest.promote(user)
+		await tempest.promote(user)
 
 
 def setup(bot):

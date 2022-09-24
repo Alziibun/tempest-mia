@@ -1,6 +1,7 @@
 import tempest
 import discord
 import datetime as dt
+from discord.ext import tasks
 
 from discord.ext import commands, bridge
 from tempest import Database as db
@@ -16,7 +17,7 @@ intents.messages = True # This enables the bot to request things like message hi
 intents.message_content = True
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
-extensions = ['activity', 'membership', 'dev']
+extensions = ['activity', 'membership', 'dev', 'party', 'tofindex']
 
 bot = commands.Bot(command_prefix='mi-', intents=intents, debug_guilds=[942230609701511228])
 
@@ -58,12 +59,7 @@ async def on_member_remove(member):
 		print('No TOF name.')
 	await channel.send(embed=embed)
 
-@bot.command()
-@tempest.access()
-async def time(ctx):
-	"""
-	Shows the next daily reset, weekly reset and when the next level cap is.
-	"""
+def time_embeds():
 	today = dt.datetime.now()
 	cap2, cap1 = tempest.get_next_cap()
 	current_cap = tempest.get_day(cap1[0])
@@ -86,12 +82,27 @@ async def time(ctx):
 		value = f"Mi-a will be serving __{meal_name}__ <t:{int(next_meal.timestamp())}:R>!",
 		inline= False
 	)
-	embed.add_field(
-		name  = f"{day_name}'s challenge",
-		value = ch_name,
-		inline= False
-	)
-	await ctx.send(embed=embed)
+	void_rift = []
+	frontier_clash = []
+	for day, challenge in tempest.schedule:
+		txt = f"**{day}**" if day is day_name else day
+		match challenge:
+			case "Frontier Clash":
+				frontier_clash.append(txt)
+			case "Void Rift":
+				void_rift.append(txt)
+	challenges = discord.Embed(title = 'Challenge Calendar')
+	challenges.add_field(name='Void Rift', value=' // '.join(void_rift))
+	challenges.add_field(name='Frontier Clash', value=' // '.join(frontier_clash))
+	return [embed, challenges]
+
+@bot.command()
+@tempest.access()
+async def time(ctx):
+	"""
+	Shows the next daily reset, weekly reset and when the next level cap is.
+	"""
+	await ctx.send(embed=time_embeds()[0])
 
 @bot.command()
 async def food(ctx):
@@ -107,7 +118,7 @@ def is_developer():
 
 @bot.slash_command()
 @is_developer()
-async def load(self, ctx, extension):
+async def load(ctx, extension):
 	try:
 		bot.load_extension(extension)
 	except Exception as e:
@@ -133,6 +144,22 @@ async def on_command_error(ctx: commands.Context, error: commands.CheckFailure):
 	else:
 		raise error
 
+time_channel = 1021750136596082738
+message = 1021751047548575835
+@tasks.loop(hours=1)
+async def update_clock():
+	await message.edit(embeds=time_embeds())
+	print('Clock updated')
+
+@update_clock.before_loop
+async def before_clock():
+	await bot.wait_until_ready()
+	await tempest.wait_until_ready()
+	global time_channel, message
+	time_channel = tempest.server.get_channel(time_channel)
+	message = await time_channel.fetch_message(message)
+
+update_clock.start()
 if __name__ == "__main__":  # make sure nothing else runs this part except for this code file
 	bot.help_command = Help()
 	for ex in extensions:
