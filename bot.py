@@ -36,7 +36,7 @@ async def on_member_join(member):
 		color       = discord.Colour.from_rgb(0, 255, 0))
 	embed.set_author(
 		name        = member.name + "#" + member.discriminator,
-		icon_url    = member.avatar.url)
+		icon_url    = member.display_avatar.url if member.display_avatar else None)
 	await channel.send(embed=embed)
 
 @bot.event
