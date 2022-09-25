@@ -267,7 +267,7 @@ class Party:
 
     async def end(self):
         id = len([thread for thread in tempest.party.threads if thread.archived or thread.locked])
-        await self.thread.edit(name = f"PARTY ARHIVE {id} : {self.leader.ign}", archived = True, locked = True)
+        await self.thread.edit(name = f"PARTY ARCHIVE {id} : {self.leader.ign}", archived = True, locked = True)
         await self.message.delete()
         print(self.leader.ign, 'party was ended.')
 
@@ -340,6 +340,12 @@ class LFG(commands.Cog):
     @staticmethod
     def joint_op_diffs(ctx: discord.AutocompleteContext):
         return [diff[0] for diff in difficulties if ctx.value.lower() in diff[0].lower()]
+
+    @party.command()
+    async def end(self, ctx: discord.ApplicationContext):
+        if parties.get(ctx.author.id):
+            await ctx.response.defer()
+            await parties[ctx.author.id].end()
 
     @create.command(name='joint_op')
     @option(name='name', description='Name of the joint op you want to create a party for.', autocomplete=get_joint_ops)
