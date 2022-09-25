@@ -152,6 +152,14 @@ class Member:
         data = db.get_member(self.member)
         return data[2] # ign
 
+    @property
+    def party(self):
+        for p in parties.values():
+            if self.member in p.members:
+                return True
+        return False
+
+
 class Party:
     """
     Class that handles party information.
@@ -161,7 +169,7 @@ class Party:
     - adding a party to the global list
     parties[str(leader.id)] = self
     """
-    def __init__(self, leader: discord.Member, activity=None, diff=1, req_healer=1, req_dps=2, req_tank=1):
+    def __init__(self, leader: discord.Member, activity=None, diff=1, timeout=86400, req_healer=1, req_dps=2, req_tank=1):
         if leader.id in [int(id) for id in parties]:
             raise IndexError('Party already exists.')
         self._members = []
@@ -244,6 +252,8 @@ class Party:
 
     async def add_member(self, member: discord.Member, role=None):
         member = Member(member, role)
+        if member.party:
+            return
         self._members.append(member)
         print('Added', member.member.display_name, 'to', self.leader.ign,'party.')
         message = await self.thread.send(f"{str(member.role.emoji)} {member.mention} joined the party! {self.leader.mention}")
@@ -322,11 +332,13 @@ class LFG(commands.Cog):
     party = SlashCommandGroup('party', 'Manage your party')
     create = party.create_subgroup('create', 'Create a party')
 
-    async def get_joint_ops(self, ctx: discord.AutocompleteContext):
+    @staticmethod
+    def get_joint_ops(ctx: discord.AutocompleteContext):
         print([op.available for op in JointOps if ctx.value.lower() in op.name.lower()])
         return [op.name for op in JointOps if ctx.value.lower() in op.name.lower() and op.available]
 
-    async def joint_op_diffs(self, ctx: discord.AutocompleteContext):
+    @staticmethod
+    def joint_op_diffs(ctx: discord.AutocompleteContext):
         return [diff[0] for diff in difficulties if ctx.value.lower() in diff[0].lower()]
 
     @create.command(name='joint_op')
