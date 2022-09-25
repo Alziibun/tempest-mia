@@ -71,6 +71,15 @@ class Developer(commands.Cog):
 	async def promote(self, ctx, user: discord.Member):
 		await tempest.promote(user)
 
+	@commands.slash_command()
+	async def reload(self, ctx, extension: str):
+		try:
+			self.bot.unload_extension(extension)
+			self.bot.load_extension(extension)
+			await ctx.respond('Reloaded.')
+		except Exception as e:
+			print(e)
+
 
 def setup(bot):
 	bot.add_cog(Developer(bot))
