@@ -154,14 +154,21 @@ class Activity(commands.Cog):
 	@tempest.access(2)
 	async def jumble(self, ctx):
 		officer_role = tempest.server.get_role(942230609756061777)
-		aurora = tempest.server.get_role(1008641018826067968)
 		officers = [officer for officer in officer_role.members]
-		members = [member for member in tempest.server.members if aurora not in member.roles and tempest.member_role in member.roles and not tempest.has_access(member, 3)]
-		division  = len(members) // len(officers)
-		remainder = len(members) % len(officers)
+		without_officers = []
+		for data in db.con.execute("SELECT * FROM members"):
+			m = tempest.server.get_member(data[1])
+			o = tempest.server.get_member(data[3])
+			if m and o:
+				if not tempest.has_access(o, 3) and tempest.has_access(m, 4):
+					without_officers.append(m)
+			elif m and data[3] == 0:
+				without_officers.append(m)
+		division  = len(without_officers) // len(officers)
+		remainder = len(without_officers) % len(officers)
+		members = without_officers
 		random.shuffle(members)
 		index = 0
-		officer_dict = dict()
 		print('member count', len(members))
 		while index < len(officers):
 			for i in range(division):
@@ -172,15 +179,14 @@ class Activity(commands.Cog):
 		else:
 			if remainder > 0:
 				print(remainder)
-		await ctx.respond('jumpled officersssss')
+		await ctx.respond('Assignments have been jumbled and filled.')
 
 
 	async def almost_reset(self):
 		today = time.datetime.now()
 		reset = tempest.get_daily_reset()
-		before = reset - time.timedelta(hours=1)
-		print(before, reset)
-		if before <= today > reset:
+		reset = reset.replace(hour=4)
+		if today <= reset:
 			return True
 		return False
 
@@ -208,15 +214,19 @@ class Activity(commands.Cog):
 		print('Waiting until the next hour')
 		await asyncio.sleep( diff.total_seconds() )
 
+
 	async def activity_checks(self):
-		all_members = db.cur.execute('SELECT memberid FROM members ORDER BY key').fetchall()
+		print('hello')
+		all_members = db.con.execute('SELECT id FROM members ORDER BY key').fetchall()
+		print(len(all_members))
 		if len(all_members):
 			for id in all_members:
-				await asyncio.sleep(1)
-				member = tempest.server.get_member(id)
-				total = db.totals_by_period(member, current_period[0])
-				if total < tempest.min_contribution:
-					yield member, total
+				member = tempest.server.get_member(id[0])
+				if member and tempest.has_access(member, 4):
+					total = db.totals_by_period(member, current_period[0])
+					if total < tempest.min_contribution:
+						print(member)
+						yield member, total
 
 	async def period_report(self):
 		period_settings = current_period
@@ -225,36 +235,36 @@ class Activity(commands.Cog):
 		member_list = []
 		ign_list = []
 		totals = []
-		for member, total in self.activity_checks():
+		async for member, total in self.activity_checks():
 			data = db.get_member(member)
 			member_list.append(member.mention)
-			totals.append(total)
-			ign_list.append(data[2])
+			totals.append(str(total))
+			ign_list.append(f"{data[2]}")
 
+		print(member_list)
 		if len(member_list):
 			embed = discord.Embed(
 				title='Active-Period Report',
 				description=f'*Below are a list of members who did not make the activity requirements this period.*\nStart: <t:{int(start.timestamp())}:D>\nEnd: <t:{int(end.timestamp())}:D>')
 			embed.add_field(name='Discord', value='\n'.join(member_list))
-			embed.add_field(name='ToF name', value='\n'.join(ign_list))
 			embed.add_field(name='Contribution', value='\n'.join(totals))
+			embed.add_field(name='ToF name', value='\n'.join(ign_list))
 			await tempest.officer.send(embed=embed)
 
 	@activity.command()
 	@tempest.access(3)
 	async def report(self, ctx):
 		await self.period_report()
+		await ctx.response.defer()
 
 
 	@tasks.loop(hours=1.0)
 	async def main(self):
 		print('| [PERIOD] validating period')
 		if not await self.validate_period():
-			await tempest.officer.send('A new activity period has begun.')
+			await self.period_report()
 		global current_period
 		current_period = db.fetch_current_period()
-		if await self.almost_reset():
-			await self.remind_officers()
 
 	@main.before_loop
 	async def before_main(self):
