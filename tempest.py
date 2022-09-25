@@ -399,6 +399,7 @@ class Database:
 	def set_contribution(cls, member: discord.Member, value: int):
 		# check if contribution exists for today
 		today = get_days()
+		print('Setting', member.name, 'contribution to', value)
 		result = cls.cur.execute(f"SELECT * FROM contributions WHERE memberid = {member.id} ORDER BY day").fetchall()
 		recent_day = 0
 		total = 0
@@ -424,7 +425,7 @@ class Database:
 			query = f"""
 			UPDATE contributions
 			SET points = {diff}
-			WHERE day = {today}
+			WHERE day = {today} AND memberid = {member.id}
 			"""
 			print('Updating contributions')
 		else:

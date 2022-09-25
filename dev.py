@@ -55,6 +55,18 @@ class Developer(commands.Cog):
 			print(table_name)
 		await ctx.send(embeds=embeds)
 
+	@commands.command()
+	async def view(self, ctx, dbname: str):
+		"""
+		Shows database info
+		"""
+		embed = discord.Embed(title=dbname)
+		for col in db.con.execute(f'PRAGMA table_info("{dbname}")').fetchall():
+			vals = [f"{val[0]}" for val in db.con.execute(f"SELECT {col[1]} FROM {dbname}").fetchall()]
+			embed.add_field(name = col[1], value='\n'.join(vals))
+		await ctx.send(embed=embed)
+
+
 	@commands.slash_command()
 	async def promote(self, ctx, user: discord.Member):
 		await tempest.promote(user)
