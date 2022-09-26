@@ -1,3 +1,5 @@
+import asyncio
+
 import tempest
 import discord
 import datetime as dt
@@ -148,8 +150,15 @@ time_channel = 1021750136596082738
 message = 1021751047548575835
 @tasks.loop(hours=1)
 async def update_clock():
-	await message.edit(embeds=time_embeds())
-	print('Clock updated')
+	update_pending = True
+	while update_pending:
+		try:
+			await message.edit(embeds=time_embeds())
+			print('Clock updated')
+			update_pending = False
+		except Exception as e:
+			print(e)
+			await asyncio.sleep(5)
 
 @update_clock.before_loop
 async def before_clock():
