@@ -35,6 +35,35 @@ resonances = dict(
     support = 1021862889906241598
 )
 
+def format(entry) -> str:
+    """
+    Convert HTML markup into Discord markdown
+    """
+    parsed_string = ''
+    if entry.name == 'ol':
+        parsed_list = []
+        index = 0
+        for li in entry.contents:
+            index += 1
+            parsed_list.append(f"\n   {index}.  {format(li)}")
+        parsed_string += ''.join(parsed_list)
+    else:
+        for t in entry.contents:
+            match t.name:
+                case 'strong':
+                    parsed_string += f"**{format(t)}**"
+                case 'em':
+                    parsed_string += f"__{format(t)}__"
+                case 'br':
+                    print('breaking line')
+                    parsed_string += '\n'
+                case 'p':
+                    parsed_string += f"{format(t)}"
+                case 'li':
+                    parsed_string += f"{format(t)}"
+                case _:
+                    parsed_string += t
+    return parsed_string
 class Simulacra:
     def __init__(self, character_name: str, source_page):
         if character_name in simulacra.keys():
