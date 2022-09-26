@@ -253,7 +253,9 @@ def character_embed(name):
     statnames = '\n'.join([f'+ **{statname}**' for statname in stats])
     embed = discord.Embed(
         title=f"{resonance} {element} {simul.weapon.name}",
-        url=simul.url
+        url=simul.url,
+        color=discord.Color.brand_red() if simul.is_exclusive else discord.Color.blurple(),
+        description=f"{cnexclusive}**SHATTER**: `{shatter}`  **CHARGE**: `{charge}`\n**__BASE STATS__**\n{statnames}"
     )
     for starring, desc in simul.advancements:
         embed.add_field(name=starring, value=desc, inline=False)
