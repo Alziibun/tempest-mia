@@ -334,11 +334,12 @@ class LFG(commands.Cog):
 
     @staticmethod
     def get_joint_ops(ctx: discord.AutocompleteContext):
-        print([op.available for op in JointOps if ctx.value.lower() in op.name.lower()])
+        print(ctx.value)
         return [op.name for op in JointOps if ctx.value.lower() in op.name.lower() and op.available]
 
     @staticmethod
     def joint_op_diffs(ctx: discord.AutocompleteContext):
+        print(ctx.value)
         return [diff[0] for diff in difficulties if ctx.value.lower() in diff[0].lower()]
 
     @party.command()
@@ -348,8 +349,8 @@ class LFG(commands.Cog):
             await parties[ctx.author.id].end()
 
     @create.command(name='joint_op')
-    @option(name='name', description='Name of the joint op you want to create a party for.', autocomplete=get_joint_ops)
-    @option(name='difficulty', description='Select the difficulty of the join op.', autocomplete=joint_op_diffs)
+    @option(name='name', description='Name of the joint op you want to create a party for.')
+    @option(name='difficulty', description='Select the difficulty of the join op.')
     async def create_joint_op(self, ctx, name, difficulty):
         diff = [diff[0] for diff in difficulties].index(difficulty) + 1
         #try:

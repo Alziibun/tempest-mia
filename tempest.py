@@ -507,9 +507,10 @@ class Database:
 	#     FETCHING
 
 	@classmethod
-	def autocomplete_ign(cls, ctx: discord.AutocompleteContext):
+	@property
+	def igns(cls) -> list[str]:
 		data = cls.cur.execute('SELECT ign FROM members').fetchall()
-		return [name[0] for name in data if name[0] is not None and ctx.value.lower() in name[0].lower()]
+		return [name[0] for name in data if name[0] is not None]
 
 
 	@classmethod

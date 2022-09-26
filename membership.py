@@ -158,7 +158,7 @@ class ApplicationControls(discord.ui.View):
 			await interaction.message.delete()
 		member = tempest.server.get_member(self.member_id)
 		db.delete_application(member)
-		await tempest.promote(interaction.author, member)
+		await tempest.promote(interaction.user, member)
 		print(f"MEMBERSHIP: {member.display_name}'s application was accepted by {interaction.user.display_name}")
 		await tempest.apps.send(f"✅ {member.mention}'s (**{self.ign}**) application was accepted")
 

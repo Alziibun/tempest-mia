@@ -39,6 +39,7 @@ class Simulacra:
     def __init__(self, character_name: str, source_page):
         if character_name in simulacra.keys():
             return
+        self.url = f"https://toweroffantasy.info/simulacra/{character_name.replace(' ','-')}"
         self._soup = BeautifulSoup(source_page, 'html.parser')
         self._name = character_name
         self._weapon = Weapon(self._soup)
@@ -96,7 +97,6 @@ class Simulacra:
                         content += d
             yield header, content
 
-
     @classmethod
     @property
     def all_characters(cls) -> list:
@@ -118,8 +118,6 @@ class Simulacra:
                 driver.get(f"https://toweroffantasy.info/simulacra/{name.replace(' ','-')}")
                 wait.until(EC.title_is(f"{name} | Tower of Fantasy Index"))
                 simulacra[name] = Simulacra(name, driver.page_source)
-
-
 
 
 class Weapon:
@@ -173,7 +171,7 @@ def advancement_embed(name):
     files = [discord.File(avatar), discord.File(weapon)]
     embed = discord.Embed(
         title=f"{resonance} {element} {simul.weapon.name}",
-        url=simul._url
+        url=simul.url
     )
     for starring, desc in simul.advancements:
         embed.add_field(name=starring, value=desc, inline=False)
@@ -189,8 +187,7 @@ class Info(commands.Cog):
     def autocomplete_simulacra(ctx: discord.AutocompleteContext):
         return [sim for sim in simulacra if ctx.value.lower() in sim.lower()]
 
-    sim = SlashCommandGroup('simulacra')
-    @sim.command()
+    @commands.slash_command()
     @option(name='name', description='Search for a Simulacra\'s advancements from tofindex site', autocomplete=autocomplete_simulacra)
     async def advancements(self, ctx,  name: str):
         embed, files = advancement_embed(name)

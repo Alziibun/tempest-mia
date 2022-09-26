@@ -100,12 +100,17 @@ class Activity(commands.Cog):
 		)
 		await ctx.send(embed=embed)
 
-	activity = SlashCommandGroup('activity', 'Manage member activity', checks=[tempest.access(3).predicate])
+	@staticmethod
+	async def igns(ctx: discord.AutocompleteContext):
+		print('huh')
+		dblist = db.igns
+		return [name for name in dblist if ctx.value.lower() in name.lower()]
 
-	@activity.command(description="Edit a member's contribution record")
-	@option('ign', description='**CASE SENSITIVE!** Search for the member by their IGN.', autocomplete=db.autocomplete_ign)
+	@commands.slash_command(description="Edit a member's contribution record")
 	@option('points', description="Provide the member's **CURRENT** weekly contribution score.  Mi-a will do the rest for you")
-	async def edit(self, ctx, ign: str, points: int):
+	@option('ign', description='**CASE SENSITIVE!** Search for the member by their IGN.', autocomplete=igns)
+	@tempest.access(3)
+	async def activity_edit(self, ctx, points, ign):
 		data = db.get_member_by_ign(ign)
 		if not data:
 			await ctx.respond(f"Unable to find member by the name of `{ign}`.  They may not exist in the database.\n> Hint: Tower of Fantasy IGNs are case-sensitive.", ephemeral=True)
@@ -115,10 +120,11 @@ class Activity(commands.Cog):
 			db.set_contribution(member, points)
 			await ctx.respond(f"{ign}'s contributions have been recorded.", ephemeral=True)
 
-	@activity.command(description="View a members activity record")
+	@commands.slash_command(description="View a members activity record")
 	@option('user', description='Search the activity of a member by their Discord.')
-	@option('ign', description='CASE SENSITIVE!  Search by TOF username.', autocomplete=db.autocomplete_ign)
-	async def view(self, ctx, user:discord.Member=None, ign: str=None):
+	@option('ign', description='CASE SENSITIVE!  Search by TOF username.', autocomplete=igns)
+	@tempest.access(4)
+	async def activity_view(self, ctx, user:discord.Member=None, ign: str=None):
 		if ign and user:
 			return await ctx.respond('Use either TOF ign or Discord name.  Not both.', ephemeral=True)
 		elif ign:
@@ -162,8 +168,6 @@ class Activity(commands.Cog):
 			if m and o:
 				if not tempest.has_access(o, 3) and tempest.has_access(m, 4):
 					without_officers.append(m)
-			elif m and data[3] == 0:
-				without_officers.append(m)
 		division  = len(without_officers) // len(officers)
 		remainder = len(without_officers) % len(officers)
 		members = without_officers
@@ -189,9 +193,6 @@ class Activity(commands.Cog):
 		if today <= reset:
 			return True
 		return False
-
-	async def remind_officers(self):
-		await tempest.botdev.send('Task test.')
 
 	async def validate_period(self):
 		data  = db.fetch_current_period()
@@ -251,8 +252,8 @@ class Activity(commands.Cog):
 			embed.add_field(name='ToF name', value='\n'.join(ign_list))
 			await tempest.officer.send(embed=embed)
 
-	@activity.command()
-	@tempest.access(3)
+	@commands.slash_command()
+	@tempest.access(2)
 	async def report(self, ctx):
 		await self.period_report()
 		await ctx.response.defer()
@@ -275,8 +276,6 @@ class Activity(commands.Cog):
 		global current_period
 		current_period = db.fetch_current_period()
 		await self.wait_until_hour()
-		if await self.almost_reset():
-			await self.remind_officers()
 		# when the hour is fresh
 
 
