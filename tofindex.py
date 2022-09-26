@@ -248,6 +248,9 @@ def character_embed(name):
     element = [emoji for emoji in tempest.server.emojis if emoji.id == elements[simul.weapon.element]][0]
     resonance = [emoji for emoji in tempest.server.emojis if emoji.id == resonances[simul.weapon.resonance]][0]
     files = [discord.File(avatar), discord.File(weapon)]
+    shatter, charge, stats = simul.weapon.base_stats
+    cnexclusive = '**CN EXCLUSIVE**\n' if simul.is_exclusive else ''
+    statnames = '\n'.join([f'+ **{statname}**' for statname in stats])
     embed = discord.Embed(
         title=f"{resonance} {element} {simul.weapon.name}",
         url=simul.url
