@@ -101,16 +101,16 @@ class Activity(commands.Cog):
 		await ctx.send(embed=embed)
 
 	@staticmethod
-	async def igns(ctx: discord.AutocompleteContext):
+	def igns(ctx: discord.AutocompleteContext):
 		print('huh')
 		dblist = db.igns
 		return [name for name in dblist if ctx.value.lower() in name.lower()]
 
 	@commands.slash_command(description="Edit a member's contribution record")
-	@option('points', description="Provide the member's **CURRENT** weekly contribution score.  Mi-a will do the rest for you")
 	@option('ign', description='**CASE SENSITIVE!** Search for the member by their IGN.', autocomplete=igns)
+	@option('points', description="Provide the member's **CURRENT** weekly contribution score.  Mi-a will do the rest for you")
 	@tempest.access(3)
-	async def activity_edit(self, ctx, points, ign):
+	async def activity_edit(self, ctx, ign: str, points: int):
 		data = db.get_member_by_ign(ign)
 		if not data:
 			await ctx.respond(f"Unable to find member by the name of `{ign}`.  They may not exist in the database.\n> Hint: Tower of Fantasy IGNs are case-sensitive.", ephemeral=True)
@@ -166,8 +166,12 @@ class Activity(commands.Cog):
 			m = tempest.server.get_member(data[1])
 			o = tempest.server.get_member(data[3])
 			if m and o:
-				if not tempest.has_access(o, 3) and tempest.has_access(m, 4):
+				if not tempest.has_access(o, 3) and tempest.has_access(m, 4) and not tempest.has_access(m, 3):
 					without_officers.append(m)
+			elif m and not o:
+				if tempest.has_access(m, 4) and not tempest.has_access(m, 3):
+					without_officers.append(m)
+
 		division  = len(without_officers) // len(officers)
 		remainder = len(without_officers) % len(officers)
 		members = without_officers
@@ -219,14 +223,15 @@ class Activity(commands.Cog):
 	async def activity_checks(self):
 		print('hello')
 		all_members = db.con.execute('SELECT id FROM members ORDER BY key').fetchall()
-		print(len(all_members))
 		if len(all_members):
 			for id in all_members:
 				member = tempest.server.get_member(id[0])
-				if member and tempest.has_access(member, 4):
+				if member and tempest.has_access(member, 4) and not tempest.has_access(member, 3):
+					data = db.get_member(member)
+					if data[2] is None: continue
 					total = db.totals_by_period(member, current_period[0])
 					if total < tempest.min_contribution:
-						print(member)
+						print('ACTIVITY CHECK:', member.name, total)
 						yield member, total
 
 	async def period_report(self):
@@ -241,8 +246,6 @@ class Activity(commands.Cog):
 			member_list.append(member.mention)
 			totals.append(str(total))
 			ign_list.append(f"{data[2]}")
-
-		print(member_list)
 		if len(member_list):
 			embed = discord.Embed(
 				title='Active-Period Report',
