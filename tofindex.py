@@ -119,12 +119,37 @@ class Simulacra:
                     case 'strong':
                         content += f"**{d.string}**"
                     case 'br':
+
                         content += '\n'
                     case 'em':
                         content += f"`{d.string}`"
                     case _:
                         content += d
             yield header, content
+
+    @property
+    def abilities(self) -> dict:
+        source = self._soup.find('section', attrs={'class': 'weapon-abilities'})
+        headers = source.find_all('details')
+        abil = dict()
+        for details in headers:
+            name = details.summary.h4.string.capitalize()
+            weapon_abilities = dict()
+            for ability in details.div.find_all('div', attrs={'class': 'weapon-ability'}):
+                ability_name = ability.h3.string
+                parsed_body = ''
+                input_string = str()
+                if ability.find('ul', attrs={'class': 'ability-inputs'}):
+                    input_string = f"{' + '.join([f'`{input.kbd.string}`' for input in ability.ul.contents if input.name == 'li'])}"
+                    for t in ability.contents[2:]:
+                        parsed_body += format(t)
+                else:
+                    for t in ability.contents[1:]:
+                        parsed_body += format(t)
+                weapon_abilities.update({f"{ability_name}": {'inputs': input_string, 'description': parsed_body}})
+            abil.update({f"{name}": weapon_abilities})
+        return abil
+
 
     @classmethod
     @property
@@ -208,6 +233,21 @@ def advancement_embed(name):
     embed.set_thumbnail(url=weapon_file)
     return embed, files
 
+def ability_embed(name: str, category: str):
+    simul = simulacra[name]
+    selection = simul.abilities[category]
+    embed = discord.Embed(title=category)
+    for skill_name, val in selection.items():
+        inputs = val['inputs']
+        description = val['description']
+        if category in ['Skill', 'Discharge']:
+            embed.title += f": {skill_name}"
+            embed.description = f"{description}"
+        else:
+            embed.add_field(name=skill_name, value=f"{f'Input: {inputs}' if inputs else ''}\n>>> {description}", inline=False)
+    return embed
+
+
 class Info(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -221,6 +261,19 @@ class Info(commands.Cog):
     async def advancements(self, ctx,  name: str):
         embed, files = advancement_embed(name)
         await ctx.respond(files=files, embed=embed, ephemeral=False)
+
+
+    @commands.slash_command()
+    @option(name='name', description='Name of the Simulacra', autocomplete=autocomplete_simulacra)
+    @option(name='category', description='Skill category selection', choices=[
+        discord.OptionChoice('Normal attacks', value='Normal'),
+        discord.OptionChoice('Dodge', value='Dodge'),
+        discord.OptionChoice('Skill', value='Skill'),
+        discord.OptionChoice('Discharge', value='Discharge')])
+    async def abilities(self, ctx, name: str, category):
+        embed, files = character_embed(name)
+        abil_embed = ability_embed(name, category)
+        await ctx.respond(files=files, embeds=[embed, abil_embed], ephemeral=False)
 
     @commands.Cog.listener()
     async def on_ready(self):
