@@ -196,10 +196,10 @@ def get_daily_reset():
 
 def get_weekly_reset():
 	today = dt.datetime.now()
+	print(today)
+	diff = 0
 	if today.weekday() > 0:
 		diff = 7 - today.weekday()
-	elif today.hour < 5:
-		diff = 0
 	reset = today.replace(hour=5, minute=0, second=0, microsecond=0) + dt.timedelta(days = diff)
 	return reset
 
