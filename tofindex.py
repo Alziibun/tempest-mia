@@ -257,12 +257,17 @@ def character_embed(name):
         color=discord.Color.brand_red() if simul.is_exclusive else discord.Color.blurple(),
         description=f"{cnexclusive}**SHATTER**: `{shatter}`  **CHARGE**: `{charge}`\n**__BASE STATS__**\n{statnames}"
     )
-    for starring, desc in simul.advancements:
-        embed.add_field(name=starring, value=desc, inline=False)
     embed.set_author(name=simul.name, icon_url=avatar_file)
     embed.set_thumbnail(url=weapon_file)
     return embed, files
 
+
+def advancement_embed(name):
+    simul = simulacra[name]
+    embed, files = character_embed(name)
+    for starring, desc in simul.advancements:
+        embed.add_field(name=starring, value=desc, inline=False)
+    return embed, files
 
 def effects_embed(name):
     simul = simulacra[name]
