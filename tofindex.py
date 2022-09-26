@@ -189,7 +189,10 @@ class Weapon:
 
     @property
     def base_stats(self):
-        pass
+        shatter = self.stats[2].div.h4.string
+        charge  = self.stats[3].div.h4.string
+        base = self._main_stats.find_all('div', attrs={'class': 'base-stats'})
+        return shatter, charge, [stat.div.h4.string for stat in base]
 
     @property
     def element(self):
@@ -214,7 +217,29 @@ class Weapon:
             img.save(f'img/weapons/weapon_{filename}', 'png')
         return f'img/weapons/weapon_{filename}'
 
-def advancement_embed(name):
+    @property
+    def effects(self):
+        eff = self._soup.find('section', attrs={'class': 'weapon-effects'})
+        _effects = eff.find_all('div')
+        result = dict()
+        print(_effects[:])
+        for effect in _effects[1:]:
+            parsed_body = ''
+            for d in effect.p.contents:
+                match d.name:
+                    case 'strong':
+                        parsed_body += f"**{d.string}**"
+                    case _:
+                        parsed_body += d
+            result.update({f'{effect.h4.string}' : parsed_body})
+
+        print(result)
+        return result
+
+def character_embed(name):
+    """
+    The base form of the simulacra embed
+    """
     simul = simulacra[name]
     avatar = simul.avatar
     weapon = simul.weapon.img
@@ -231,6 +256,14 @@ def advancement_embed(name):
         embed.add_field(name=starring, value=desc, inline=False)
     embed.set_author(name=simul.name, icon_url=avatar_file)
     embed.set_thumbnail(url=weapon_file)
+    return embed, files
+
+
+def effects_embed(name):
+    simul = simulacra[name]
+    embed, files = character_embed(name)
+    for i in simul.weapon.effects.items():
+        embed.add_field(name=i[0], value=i[1], inline=False)
     return embed, files
 
 def ability_embed(name: str, category: str):
@@ -262,6 +295,11 @@ class Info(commands.Cog):
         embed, files = advancement_embed(name)
         await ctx.respond(files=files, embed=embed, ephemeral=False)
 
+    @commands.slash_command()
+    @option(name='name', description='Name of the Simulacra', autocomplete=autocomplete_simulacra)
+    async def stats(self, ctx, name: str):
+        embed, files = effects_embed(name)
+        await ctx.respond(files=files, embed=embed, ephemeral=False)
 
     @commands.slash_command()
     @option(name='name', description='Name of the Simulacra', autocomplete=autocomplete_simulacra)
