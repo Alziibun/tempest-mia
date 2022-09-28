@@ -40,7 +40,10 @@ def format(entry) -> str:
     Convert HTML markup into Discord markdown
     """
     parsed_string = ''
-    if entry.name == 'ol':
+    print(type(entry))
+    if entry is None:
+        pass
+    elif entry.name == 'ol':
         parsed_list = []
         index = 0
         for li in entry.contents:
@@ -64,6 +67,8 @@ def format(entry) -> str:
                 case _:
                     parsed_string += t
     return parsed_string
+
+
 class Simulacra:
     def __init__(self, character_name: str, source_page):
         if character_name in simulacra.keys():
@@ -71,7 +76,7 @@ class Simulacra:
         self.url = f"https://toweroffantasy.info/simulacra/{character_name.replace(' ','-')}"
         self._soup = BeautifulSoup(source_page, 'html.parser')
         self._name = character_name
-        self._weapon = Weapon(self._soup)
+        self._weapon = Weapon(self, self._soup)
         print('Initialized', character_name)
         print('Weapon:', self.weapon.name)
         print('CN Exclusive:', self.is_exclusive)
@@ -175,13 +180,14 @@ class Simulacra:
 
 
 class Weapon:
-    def __init__(self, soup: BeautifulSoup):
+    def __init__(self, simulacrum: Simulacra, soup: BeautifulSoup):
         self._soup = soup
         self._tag = soup.find('div', attrs={'class':'weapon-header'})
         self._info = soup.find('div', attrs={'class':'weapon-info'})
         self._image = soup.find('img', attrs={'class':'weapon-image'})
         self._main_stats = soup.find('div', attrs={'class':'weapon-stat-grid'})
         self.stats = self._main_stats.find_all('div', attrs={'class': 'weapon-stat'})
+        self._character = simulacrum
 
     @property
     def name(self) -> str:
@@ -222,16 +228,11 @@ class Weapon:
         eff = self._soup.find('section', attrs={'class': 'weapon-effects'})
         _effects = eff.find_all('div')
         result = dict()
-        print(_effects[:])
-        for effect in _effects[1:]:
-            parsed_body = ''
-            for d in effect.p.contents:
-                match d.name:
-                    case 'strong':
-                        parsed_body += f"**{d.string}**"
-                    case _:
-                        parsed_body += d
-            result.update({f'{effect.h4.string}' : parsed_body})
+        print(_effects[1 if self._character.is_exclusive else 2:])
+        for effect in _effects[1 if self._character.is_exclusive else 2:]:
+            if effect.p:
+                parsed_body = format(effect.p)
+                result.update({f'{effect.h4.string}' : parsed_body})
 
         print(result)
         return result
@@ -325,7 +326,7 @@ class Info(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await Simulacra.setup()
+       await Simulacra.setup()
 
 
 def setup(bot):
