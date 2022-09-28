@@ -117,7 +117,9 @@ class Activity(commands.Cog):
 		else:
 			print('ACTIVITY EDI1T:', ctx.author.display_name, 'adding contribution to', ign, ':', points)
 			member = tempest.server.get_member(data[1])
-			db.set_contribution(member, points)
+			try: db.set_contribution(member, points)
+			except ValueError as e:
+				await ctx.respond(f"Error: `{e}`\nYou are recording for day `{tempest.get_days()}`\nThe valid recording days for this period are `{current_period[1]}-{current_period[2]}`.")
 			await ctx.respond(f"{ign}'s contributions have been recorded.", ephemeral=True)
 
 	@commands.slash_command(description="View a members activity record")
