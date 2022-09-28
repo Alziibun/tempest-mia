@@ -19,7 +19,7 @@ intents.messages = True # This enables the bot to request things like message hi
 intents.message_content = True
 intents.guilds   = True # Allows the bot to view the servers it belongs to.  "I'm not sure why this needs to be declared or enabled." - Alzii
 
-extensions = ['activity', 'membership', 'dev', 'party', 'tofindex']
+extensions = ['activity', 'membership', 'dev', 'party', 'tofindex', 'selfrole']
 
 bot = commands.Bot(command_prefix='mi-', intents=intents, debug_guilds=[942230609701511228])
 
