@@ -182,8 +182,6 @@ def get_days():
 def get_day(day=1):
 	# get the day of the server as a timedelta
 	offset = tof_epoch + dt.timedelta(days = day-1)
-	if day > 0:
-		return offset.replace(hour=5, minute=0, second=0, microsecond=0)
 	return offset
 
 def get_daily_reset():
@@ -456,7 +454,7 @@ class Database:
 	@classmethod
 	def this_week(cls):
 		today = dt.datetime.now()
-		offset = get_days() - today.weekday()
+		offset = get_days() - today.weekday() + (1 if today.hour < 5 and today.weekday() > 0 else 0)
 		real = get_day(day=offset)
 		return real, get_weekly_reset()
 
