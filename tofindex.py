@@ -4,10 +4,8 @@ import requests
 import tempfile
 import chromedriver_autoinstaller
 import tempest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import pyppeteer
+from pyppeteer import launch
 from bs4 import BeautifulSoup
 from PIL import Image
 from discord.ext import commands
@@ -155,10 +153,19 @@ class Simulacra:
             abil.update({f"{name}": weapon_abilities})
         return abil
 
+    @property
+    def traits(self) -> list[tuple]:
+        section = self._soup.find('section', attrs={'class': 'awakening-traits'})
+        table = section.table.tbody
+        result = []
+        for tr in table.contents:
+            result.append((tr.th.string, format(tr.td)))
+        return result
+
 
     @classmethod
     @property
-    def all_characters(cls) -> list:
+    def all_characters(cls) -> list[str]:
         characters = []
         menu = simulacra_page.find('menu', attrs={"class":"modal-menu simulacra"})
         for li in menu.find_all('li'):
@@ -166,17 +173,21 @@ class Simulacra:
         return characters
 
     @classmethod
+    @property
+    async def source_pages(cls):
+        browser = await launch()
+        for name in cls.all_characters:
+            page = await browser.newPage()
+            await page.goto(f"https://toweroffantasy.info/simulacra/{name.replace(' ', '-')}")
+            html = await page.content()
+            await page.close()
+            yield name, html
+
+
+    @classmethod
     async def setup(cls):
-        with webdriver.Chrome() as driver:
-            driver.get("https://toweroffantasy.info/simulacra")
-            wait = WebDriverWait(driver, 10)
-            root = driver.current_window_handle
-            assert len(driver.window_handles) == 1
-            for name in cls.all_characters:
-                driver.switch_to.new_window('tab')
-                driver.get(f"https://toweroffantasy.info/simulacra/{name.replace(' ','-')}")
-                wait.until(EC.title_is(f"{name} | Tower of Fantasy Index"))
-                simulacra[name] = Simulacra(name, driver.page_source)
+        async for name, html in cls.source_pages:
+            simulacra[name] = Simulacra(name, html)
 
 
 class Weapon:
@@ -291,6 +302,12 @@ def ability_embed(name: str, category: str):
             embed.add_field(name=skill_name, value=f"{f'Input: {inputs}' if inputs else ''}\n>>> {description}", inline=False)
     return embed
 
+def trait_embed(name):
+    embed, files = character_embed(name)
+    for points, text in simulacra[name].traits:
+        embed.add_field(name=f"Awakening @ {points} points", value=text, inline=False)
+    return embed, files
+
 
 class Info(commands.Cog):
     def __init__(self, bot):
@@ -323,6 +340,12 @@ class Info(commands.Cog):
         embed, files = character_embed(name)
         abil_embed = ability_embed(name, category)
         await ctx.respond(files=files, embeds=[embed, abil_embed], ephemeral=False)
+
+    @commands.slash_command()
+    @option(name='name', description='Name of the Simulacra', autocomplete=autocomplete_simulacra)
+    async def trait(self, ctx, name: str):
+        embed, files = trait_embed(name)
+        await ctx.respond(files=files, embed=embed, ephemeral=False)
 
     @commands.Cog.listener()
     async def on_ready(self):
