@@ -100,11 +100,10 @@ class Role(Enum):
         print(self.name, self.value, self.id, self._emoji)
 
     @property
+    def role(self):
+        return tempest.server.get_role(self.id)
 
     @property
-    def role(self) -> discord.Role:
-        return self._role
-
     def emoji(self):
         for e in tempest.server.emojis:
             if e.id == self._emoji:
