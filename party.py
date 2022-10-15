@@ -108,11 +108,23 @@ class Role(Enum):
         for e in tempest.server.emojis:
             if e.id == self._emoji:
                 return e
+
+    @classmethod
+    def from_member(cls, member: discord.Member):
+        for name, role in cls.__members__.items():
+            if role.role in member.roles:
+                return role
+
+    @classmethod
     @property
-    def name(self) -> str:
-        return self.role.name
 
 
+    TANK         = TANK,   1006259118660665414, 1021862888442445855
+    HEALER       = HEALER, 1006259266878971934, 1021862889906241598
+    VOLT_DPS     = DPS,    1021863478857842738, 1021862197518925885
+    ICE_DPS      = DPS,    1021863787885768795, 1021862358571827240
+    FLAME_DPS    = DPS,    1021864131147595866, 1021862198991147039
+    PHYSICAL_DPS = DPS,    1021864468709388398, 1021862196382269532
 
 class Member:
     def __init__(self, member: discord.Member, role: Role=None):
