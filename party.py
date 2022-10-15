@@ -117,6 +117,10 @@ class Role(Enum):
 
     @classmethod
     @property
+    def dps(cls):
+        for e in tempest.server.emojis:
+            if e.id == 1021862891105816576:
+                return e
 
 
     TANK         = TANK,   1006259118660665414, 1021862888442445855
