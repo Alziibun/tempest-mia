@@ -454,7 +454,15 @@ class Database:
 	@classmethod
 	def this_week(cls):
 		today = dt.datetime.now()
-		offset = get_days() - today.weekday() + (1 if today.hour < 5 and today.weekday() > 0 else 0)
+		print("The weekday is,", today.weekday())
+		offset = get_days()
+		if today.weekday() > 0:
+			offset -= today.weekday()
+			if today.hour < 5:
+				offset += 1
+		elif today.hour < 5:
+			offset -= 6
+
 		real = get_day(day=offset)
 		return real, get_weekly_reset()
 
