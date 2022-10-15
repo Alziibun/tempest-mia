@@ -425,6 +425,12 @@ class LFG(commands.Cog):
         party = Party(ctx.author, op, diff=diff)
         await party.start()
 
+    @party.command(name='settings')
+    async def settings(self, ctx: discord.ApplicationContext):
+        if not str(ctx.author.id) in parties.keys():
+            return await ctx.respond('Only the party leader may use this command.', ephemeral=True)
+        view = PartySettings(parties[str(ctx.author.id)])
+        await ctx.respond(view=view, ephemeral=True)
 
 def setup(bot):
     bot.add_cog(LFG(bot))
