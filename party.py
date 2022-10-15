@@ -230,7 +230,7 @@ class Party:
         """
         Return a list of members as discord.Member references
         """
-        return [member.member for member in self.members]
+        return [member.member for member in self._members]
 
     @property
     def rich_members(self):
@@ -247,6 +247,10 @@ class Party:
                 body += f"{emoji} *None*\n"
                 index += 1
         return body
+    
+    @property
+    def max_size(self):
+        return 4 if not self.raid else 8
 
     @property
     def tanks(self):
@@ -285,13 +289,13 @@ class Party:
         assert "No party found"
 
     async def create_thread(self):
-        self.thread = await tempest.party.create_thread(name=f"{self.leader.member.display_name}'s party", type=discord.ChannelType.private_thread)
+        self.thread = await tempest.party.create_thread(name=f"{self.leader.ign}'s party", type=discord.ChannelType.private_thread)
         opening = await self.thread.send(f"Here is your party's thread! {self.leader.mention}")
         await opening.pin()
 
     async def add_member(self, member: discord.Member, role=None):
         member = Member(member, role)
-        if member.party:
+        if member.has_party:
             return
         self._members.append(member)
         print('Added', member.member.display_name, 'to', self.leader.ign,'party.')
@@ -335,78 +339,58 @@ class Party:
 
 class JoinAsTank(discord.ui.Button):
     def __init__(self, party: Party, *args, **kwargs):
-        super().__init__(label='Join as Tank', custom_id='join-tank', emoji=TANK.emoji, *args, **kwargs)
+        super().__init__(label='Join as Tank', custom_id='join-tank', emoji=Role.TANK.emoji, *args, **kwargs)
         self.party = party
-        if party.tanks >= party.req_tank:
+        if len(party.tanks) >= party.max_tanks:
             self.disabled = True
     async def callback(self, interaction):
-        await self.party.add_member(interaction.user, TANK)
+        await self.party.add_member(interaction.user, Role.TANK)
 
 class JoinAsHealer(discord.ui.Button):
     def __init__(self, party: Party, *args, **kwargs):
-        super().__init__(label='Join as Healer', custom_id='join-healer', emoji=HEALER.emoji, *args, **kwargs)
+        super().__init__(label='Join as Healer', custom_id='join-healer', emoji=Role.HEALER.emoji, *args, **kwargs)
         self.party = party
-        if party.healers >= party.req_healer:
+        if len(party.healers) >= party.max_support:
             self.disabled = True
 
     async def callback(self, interaction):
-        await self.party.add_member(interaction.user, HEALER)
+        await self.party.add_member(interaction.user, Role.HEALER)
 
 class JoinAsDPS(discord.ui.Button):
     def __init__(self, party: Party, *args, **kwargs):
-        super().__init__(label='Join as DPS', custom_id='join-dps', emoji=DPS.emoji, *args, **kwargs)
+        super().__init__(label='Join as DPS', custom_id='join-dps', emoji=Role.dps, *args, **kwargs)
         self.party = party
-        if party.dps >= party.req_dps:
+        if len(party.dps) >= party.max_dps:
             self.disabled = True
-
     async def callback(self, interaction):
-        await self.party.add_member(interaction.user, DPS)
+        await self.party.add_member(interaction.user, Role(DPS))
 
 class LFG(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        print('LFG properly loaded')
+        print('loaded LFG')
 
-
-    party = SlashCommandGroup('party', 'Manage your party')
-    create = party.create_subgroup('create', 'Create a party')
 
     @staticmethod
-    def get_joint_ops(ctx: discord.AutocompleteContext):
+    def jo_names(ctx: discord.AutocompleteContext):
         print(ctx.value)
         return [op.name for op in JointOps if ctx.value.lower() in op.name.lower() and op.available]
-
     @staticmethod
-    def joint_op_diffs(ctx: discord.AutocompleteContext):
+    def jo_diffs(ctx: discord.AutocompleteContext):
         print(ctx.value)
         return [diff[0] for diff in difficulties if ctx.value.lower() in diff[0].lower()]
 
-    @party.command()
-    async def end(self, ctx: discord.ApplicationContext):
-        if parties.get(ctx.author.id):
-            await ctx.response.defer()
-            await parties[ctx.author.id].end()
+    party = SlashCommandGroup('party')
+    create = party.create_subgroup(name='create')
 
     @create.command(name='joint_op')
-    @option(name='name', description='Name of the joint op you want to create a party for.')
-    @option(name='difficulty', description='Select the difficulty of the join op.')
-    async def create_joint_op(self, ctx, name, difficulty):
+    @option(name='name', description='Name of the joint op you want to create a party for.', autocomplete=jo_names)
+    @option(name='difficulty', description='Select the difficulty of the join op.', autocomplete=jo_diffs)
+    async def joint_op(self, ctx, name: str, difficulty: str):
         diff = [diff[0] for diff in difficulties].index(difficulty) + 1
-        #try:
         op = JointOps(name)
         party = Party(ctx.author, op, diff=diff)
         await party.start()
-        #except:
-        #    return await ctx.respond("Couldn't find an operation by that name.", ephemeral=True)
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await tempest.wait_until_ready()
-        print("Starting roles")
-        global TANK, HEALER, DPS
-        TANK   = Role(tempest.server, TANK)
-        HEALER = Role(tempest.server, HEALER)
-        DPS    = Role(tempest.server, DPS)
 
 
 def setup(bot):
