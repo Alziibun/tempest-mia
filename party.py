@@ -8,7 +8,6 @@ from discord.ext import commands
 from discord.commands import SlashCommandGroup
 from discord import option
 
-
 Monday    = 0
 Tuesday   = 1
 Wednesday = 2
@@ -16,11 +15,6 @@ Thursday  = 3
 Friday    = 4
 Saturday  = 5
 Sunday    = 6
-
-
-TANK = 1006259118660665414, 1006942270366429216
-HEALER = 1006259266878971934, 1006942271872180355
-DPS = 1006259071151780051, 1006942269582102609
 
 parties = dict()
 difficulties = [
@@ -91,13 +85,19 @@ class FrontierClash(Activity):
 class VoidRift(Activity):
     VOID_RIFT = 'Void Rift', [('Normal', 41)]
 
-class Role:
-    def __init__(self, server: discord.Guild, role):
-        role_id, emote_id = role
-        self._role = server.get_role(role_id)
-        for e in server.emojis:
-            if e.id == emote_id:
-                self._emoji = e
+TANK = 'Tank'
+HEALER = 'Support'
+DPS = 'DPS'
+class Role(Enum):
+    def __new__(cls, role_name: str, role_id: int, emoji_id: int, *args, **kwargs):
+        obj = object.__new__(cls)
+        role = role_name
+        obj._value_ = role
+        return obj
+    def __init__(self, role_name: str, role_id: int, emoji_id: int, *args, **kwargs):
+        self._emoji = emoji_id
+        self.id = role_id
+        print(self.name, self.value, self.id, self._emoji)
 
     @property
     def emoji(self) -> discord.Emoji:
