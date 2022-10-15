@@ -250,15 +250,39 @@ class Party:
 
     @property
     def tanks(self):
-        return len([m for m in self._members if m.role is TANK])
+        return [m for m in self._members if m.role.value is TANK]
+
+    @property
+    def max_tanks(self):
+        return self._tanks
 
     @property
     def healers(self):
-        return len([m for m in self._members if m.role is HEALER])
+        return [m for m in self._members if m.role.value is HEALER]
+
+    @property
+    def max_support(self):
+        return self._support
 
     @property
     def dps(self):
-        return len([m for m in self._members if m.role is DPS])
+        return [m for m in self._members if m.role.value is DPS]
+
+    @property
+    def max_dps(self):
+        return self._dps
+
+    def set_max_roles(self, tanks=0, healers=0, dps=0):
+        self._tanks = tanks
+        self._healers = healers
+        self._dps = dps
+
+    @classmethod
+    def from_member(cls, member: discord.Member):
+        for p in parties.values():
+            if member in p.members:
+                return p
+        assert "No party found"
 
     async def create_thread(self):
         self.thread = await tempest.party.create_thread(name=f"{self.leader.member.display_name}'s party", type=discord.ChannelType.private_thread)
