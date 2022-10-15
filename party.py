@@ -201,21 +201,27 @@ class Party:
     - adding a party to the global list
     parties[str(leader.id)] = self
     """
-    def __init__(self, leader: discord.Member, activity=None, diff=1, timeout=86400, req_healer=1, req_dps=2, req_tank=1):
+    def __init__(self, leader: discord.Member, activity=None, diff=1, raid=False, timeout=86400):
         if leader.id in [int(id) for id in parties]:
             raise IndexError('Party already exists.')
         self._members = []
         self.activity = activity
         self.diff = diff
         self.leader = Member(leader)
-
-        self.req_healer = req_healer
-        self.req_dps = req_dps
-        self.req_tank = req_tank
+        self.raid = raid
+        if self.raid:
+            self._tanks = 1
+            self._support = 2
+            self._dps = 5
+        else:
+            self._tanks = 1
+            self._support = 1
+            self._dps = 2
 
         self.message = None
         self.view = None
         self.thread = None
+
         parties[str(leader.id)] = self
         print('PARTY:', leader.display_name, 'created a party.')
 
