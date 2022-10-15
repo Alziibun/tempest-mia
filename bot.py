@@ -75,10 +75,16 @@ def time_embeds():
 		name  = 'Reset times',
 		value = f"Daily reset: <t:{int(tempest.get_daily_reset().timestamp())}:R>\nWeekly reset: <t:{int(tempest.get_weekly_reset().timestamp())}:R>"
 	)
-	embed.add_field(
-		name  = 'Level cap',
-		value = f"As of <t:{int(current_cap.timestamp())}:R> the level cap is **{cap1[1]}**\nThe level cap will raise to **{cap2[1]}** <t:{int(next_cap.timestamp())}:R>."
-	)
+	if cap1[1] != cap2[1]:
+		embed.add_field(
+			name  = 'Level cap',
+			value = f"As of <t:{int(current_cap.timestamp())}:R> the level cap is **{cap1[1]}**\nThe level cap will raise to **{cap2[1]}** <t:{int(next_cap.timestamp())}:R>."
+		)
+	else:
+		embed.add_field(
+			name = 'Level cap',
+			value = f"As of <t:{int(current_cap.timestamp())}:R> the level cap is **{cap1[1]}**"
+		)
 	embed.add_field(
 		name  = 'Mi-a\'s Kitchen',
 		value = f"Mi-a will be serving __{meal_name}__ <t:{int(next_meal.timestamp())}:R>!",
