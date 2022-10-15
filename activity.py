@@ -244,22 +244,24 @@ class Activity(commands.Cog):
 		period_settings = current_period
 		start = tempest.get_day(period_settings[1])
 		end   = tempest.get_day(period_settings[2])
-		member_list = []
-		ign_list = []
-		totals = []
-		async for member, total in self.activity_checks():
+		info = dict()
+		index = 0
+		async for member, officer, total in self.activity_checks():
+			index += 1
 			data = db.get_member(member)
-			member_list.append(member.mention)
-			totals.append(str(total))
-			ign_list.append(f"{data[2]}")
-		if len(member_list):
-			embed = discord.Embed(
-				title='Active-Period Report',
-				description=f'*Below are a list of members who did not make the activity requirements this period.*\nStart: <t:{int(start.timestamp())}:D>\nEnd: <t:{int(end.timestamp())}:D>')
-			embed.add_field(name='Discord', value='\n'.join(member_list))
-			embed.add_field(name='Contribution', value='\n'.join(totals))
-			embed.add_field(name='ToF name', value='\n'.join(ign_list))
-			await tempest.officer.send(embed=embed)
+			if not len(info[str(officer.id)]):
+				info[str(officer.id)] = ''
+			info[str(officer.id)] += f"[`{total}`] {data[2]}, {member.mention}"
+
+		embed = discord.Embed(
+			title = 'Active-Period Report',
+			description='*Below are a list of members who have failed to meet activity checks.*'
+		)
+		for key, value in info.items():
+			officer = tempest.server.get_member(int(key))
+			embed.add_field(name=officer.display_name, value=value)
+		print(index)
+		await tempest.officer.send(embed=embed)
 
 	@commands.slash_command()
 	@tempest.access(2)
