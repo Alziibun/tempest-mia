@@ -238,37 +238,14 @@ class Party:
         Used for embed.  Returns the list of party members with their role emoji.
         """
         body = ''
-        tanks = 0
-        dps = 0
-        healers = 0
-
-        # tanks
-        for member in self._members:
-            if member.role is TANK:
-                tanks += 1
-                body += f"{str(member.role.emoji)} {member.mention} ({member.ign})\n"
-        while tanks < self.req_tank:
-            body += f"{str(TANK.emoji)} *None*\n"
-            tanks += 1
-
-        # healers
-        for member in self._members:
-            if member.role is HEALER:
-                healers += 1
-                body += f"{str(member.role.emoji)} {member.mention} ({member.ign})\n"
-        while healers < self.req_healer:
-            body += f"{str(HEALER.emoji)} *None*\n"
-            healers += 1
-
-        # dps
-        for member in self._members:
-            if member.role is DPS:
-                dps += 1
-                body += f"{str(member.role.emoji)} {member.mention} ({member.ign})\n"
-        while dps < self.req_dps:
-            body += f"{str(DPS.emoji)} *None*\n"
-            dps += 1
-
+        temp_settings = [(Role.TANK.emoji, self.tanks, self.max_tanks), (Role.HEALER.emoji, self.healers, self.max_support), (Role.dps, self.dps, self.max_dps)]
+        for emoji, members, maximum in temp_settings:
+            index = len(members)
+            for member in members:
+                body += f"{emoji} {member.mention} (**{member.ign}**)\n"
+            while index < maximum:
+                body += f"{emoji} *None*\n"
+                index += 1
         return body
 
     @property
