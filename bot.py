@@ -129,9 +129,31 @@ def is_developer():
 async def load(ctx, extension):
 	try:
 		bot.load_extension(extension)
+		await ctx.respond(f'Loaded {extension}')
 	except Exception as e:
 		exc = "{}: {}".format(type(e).__name__, e)
 		await ctx.respond('Failed to load extension {}\n{}'.format(ex, exc))
+
+@bot.slash_command()
+@is_developer()
+async def unload(ctx, extension):
+	try:
+		bot.unload_extension(extension)
+		await ctx.respond(f"Unloaded {extension}")
+	except Exception as e:
+		exc = "{}: {}".format(type(e).__name__, e)
+		await ctx.respond('Failed to unload extension {}\n{}'.format(ex, exc))
+
+@bot.slash_command()
+@is_developer()
+async def reload(ctx, extension: str):
+	try:
+		bot.unload_extension(extension)
+		await asyncio.sleep(1)
+		bot.load_extension(extension)
+		await ctx.respond(f'Reloaded {extension}.')
+	except Exception as e:
+		print(e)
 
 
 class Help(commands.HelpCommand):
