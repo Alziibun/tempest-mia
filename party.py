@@ -337,6 +337,39 @@ class Party:
             print('edit message')
             await self.message.edit(embed=embed, view=view)
 
+class PartySettings(discord.ui.Select):
+    def __init__(self, party: Party, *args, **kwargs):
+        self.party = party
+        self.matrix = None
+        if not self.party.raid:
+            self.matrix = party_matrix
+            super().__init__(placeholder='Select your party\'s roles', min_values=4, max_values=4, *args, **kwargs)
+        else:
+            self.matrix = raid_matrix
+            super().__init__(placeholder='Select your raid\'s roles', min_values=8, max_values=8, *args, **kwargs)
+        for row in self.matrix:
+            row_type = row[0]
+            col_index = 0
+            for col in row:
+                if col is not None:
+                    col_index += 1
+                    match row_type.lower():
+                        case TANK.lower():
+                            self.add_option(label=TANK, emoji=Role.TANK.emoji, value=TANK, description=f"{TANK} position #{col_index}")
+                        case HEALER.lower():
+                            self.add_option(label=HEALER, emoji=Role.HEALER.emoji, value=HEALER, description=f"{HEALER} position #{col_index}")
+                        case DPS.lower():
+                            self.add_option(label=DPS, emoji=Role.dps, value=DPS, description=f"{DPS} position #{col_index}")
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id == self.party.leader.id:
+            await interaction.response.defer()
+            tanks = len([v for v in self.values if v is TANK])
+            healers = len([v for v in self.values if v is HEALER])
+            dps = len([v for v in self.values if v is DPS])
+            self.party.set_max_roles(tanks, healers, dps)
+            await self.party.create_listing()
+
+
 class JoinAsTank(discord.ui.Button):
     def __init__(self, party: Party, *args, **kwargs):
         super().__init__(label='Join as Tank', custom_id='join-tank', emoji=Role.TANK.emoji, *args, **kwargs)
