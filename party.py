@@ -181,6 +181,17 @@ class Member:
         return False
 
 
+party_matrix = [
+    [TANK,   None, None, None],
+    [HEALER, None, None, None],
+    [DPS,    DPS,  DPS,  DPS ]]
+
+raid_matrix = [
+    [TANK,   TANK,   None, None, None, None, None, None],
+    [HEALER, HEALER, None, None, None, None, None, None],
+    [DPS,    DPS,    DPS,  DPS,  DPS,  DPS,  DPS,  DPS]]
+
+
 class Party:
     """
     Class that handles party information.
