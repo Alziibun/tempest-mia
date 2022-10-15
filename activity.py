@@ -230,11 +230,15 @@ class Activity(commands.Cog):
 				member = tempest.server.get_member(id[0])
 				if member and tempest.has_access(member, 4) and not tempest.has_access(member, 3):
 					data = db.get_member(member)
-					if data[2] is None: continue
-					total = db.totals_by_period(member, current_period[0])
-					if total < tempest.min_contribution:
-						print('ACTIVITY CHECK:', member.name, total)
-						yield member, total
+					try:
+						officer = tempest.server.get_member(data[3])
+						if data[2] is None or not tempest.has_access(officer, 3): continue
+						total = db.totals_by_period(member, current_period[0])
+						if total < tempest.min_contribution:
+							print('ACTIVITY CHECK:', member.name, total, officer.display_name)
+							yield member, officer, total
+					except Exception as e:
+						print(e)
 
 	async def period_report(self):
 		period_settings = current_period
