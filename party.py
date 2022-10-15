@@ -4,7 +4,7 @@ import datetime
 import asyncio
 from tempest import Database as db
 from enum import Enum
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.commands import SlashCommandGroup
 from discord import option
 
@@ -328,9 +328,9 @@ class Party:
         embed.set_author(name=self.leader.ign, icon_url=self.leader.member.display_avatar.url)
         embed.add_field(name='Members', value=self.rich_members)
         view = discord.ui.View(timeout=None)
-        view.add_item(JoinAsTank(self))
-        view.add_item(JoinAsDPS(self))
-        view.add_item(JoinAsHealer(self))
+        if self._tanks > 0: view.add_item(JoinAsTank(self))
+        if self._support > 0: view.add_item(JoinAsHealer(self))
+        if self._dps > 0: view.add_item(JoinAsDPS(self))
         if self.message is None:
             self.message = await tempest.party.send(embed=embed, view=view)
         else:
