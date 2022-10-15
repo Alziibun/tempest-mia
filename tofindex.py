@@ -173,21 +173,20 @@ class Simulacra:
         return characters
 
     @classmethod
-    @property
-    async def source_pages(cls):
-        browser = await launch()
+    async def source_pages(cls, browser):
         for name in cls.all_characters:
             page = await browser.newPage()
             await page.goto(f"https://toweroffantasy.info/simulacra/{name.replace(' ', '-')}")
             html = await page.content()
             await page.close()
             yield name, html
-
-
     @classmethod
     async def setup(cls):
-        async for name, html in cls.source_pages:
+        browser = await launch()
+        async for name, html in cls.source_pages(browser):
             simulacra[name] = Simulacra(name, html)
+        await browser.close()
+        print('setup finished')
 
 
 class Weapon:
