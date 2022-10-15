@@ -133,9 +133,10 @@ class Role(Enum):
 class Member:
     def __init__(self, member: discord.Member, role: Role=None):
         if role == None:
-            for i in [TANK, HEALER, DPS]:
-                if i.role in member.roles:
-                    self._role = i
+            try:
+                self._role = Role.from_member(member)
+            except:
+                raise IndexError('Unable to find a role from member')
         else:
             self._role = role
         self._member = member
@@ -170,10 +171,13 @@ class Member:
         return data[2] # ign
 
     @property
-    def party(self):
+    def has_party(self):
+        print(parties.values())
         for p in parties.values():
-            if self.member in p.members:
-                return True
+            if len(p.members) > 0:
+                print(1)
+                if self.member in p.members:
+                    return True
         return False
 
 
